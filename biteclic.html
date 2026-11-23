@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1512">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiteClic">
+<title>BiteClic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1512; --surf:#16201B; --surf2:#1E2B24; --line:#2A3A31;
+  --txt:#EEF3EC; --mut:#8FA296; --acc:#C8F169; --acc-ink:#12200A;
+  --bad:#FF7A59; --warn:#F2C14E;
+  --r:18px; --disp:'Bricolage Grotesque',system-ui,sans-serif; --body:'Figtree',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--body);font-size:16px;line-height:1.4}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:rgba(14,21,18,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.logo{font-family:var(--disp);font-weight:800;font-size:26px;letter-spacing:-.03em}
+.logo span{color:var(--acc)}
+.me{display:flex;align-items:center;gap:10px;background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 14px;max-width:62%}
+.me .n{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me b{background:var(--acc);color:var(--acc-ink);border-radius:999px;padding:4px 10px;font-size:14px;font-weight:700;white-space:nowrap}
+
+.demo{margin:12px 16px 0;padding:10px 12px;border-radius:12px;border:1px dashed var(--warn);color:var(--warn);font-size:13px}
+main{padding:14px 16px calc(96px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+h2{font-family:var(--disp);font-size:22px;margin:6px 0 12px;letter-spacing:-.02em}
+
+.seg{display:flex;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;padding:9px 6px;border-radius:9px;font-weight:600;font-size:14px;color:var(--mut)}
+.seg button[aria-pressed=true]{background:var(--surf2);color:var(--txt)}
+
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.card-h{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mut);margin-bottom:8px}
+.card-h b{color:var(--txt)}
+.badge{font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+.b-ouvert{background:rgba(200,241,105,.14);color:var(--acc)}
+.b-ferme{background:rgba(242,193,78,.14);color:var(--warn)}
+.b-regle{background:var(--surf2);color:var(--mut)}
+.card h3{font-family:var(--disp);font-size:18px;line-height:1.2;margin:0 0 12px;letter-spacing:-.01em}
+.odds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.odd{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;
+  background:var(--surf2);border:1px solid var(--line);border-radius:12px;padding:10px 11px;min-height:52px}
+.odd:disabled{cursor:default}
+.odd .bar{position:absolute;left:0;bottom:0;height:3px;background:var(--acc);opacity:.55}
+.odd .on{font-size:13px;font-weight:600;line-height:1.15;min-width:0;overflow-wrap:anywhere}
+.odd .on small{display:block;font-weight:500;color:var(--acc);font-size:11px;margin-top:2px}
+.odd .oc{font-family:var(--disp);font-weight:800;font-size:15px;color:var(--acc);white-space:nowrap}
+.odd.win{border-color:var(--acc);background:rgba(200,241,105,.12)}
+.odd.lose{opacity:.45}
+.adm-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.chip{font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;background:var(--surf2);border:1px solid var(--line)}
+.chip.danger{color:var(--bad)}
+.empty{color:var(--mut);text-align:center;padding:30px 10px;font-size:14px}
+.link{display:block;margin:22px auto 0;color:var(--mut);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+
+.row{display:flex;align-items:center;gap:12px;background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px}
+.row .rk{font-family:var(--disp);font-weight:800;font-size:18px;width:28px;text-align:center;color:var(--mut)}
+.row.first .rk{color:var(--acc)}
+.row.self{border-color:var(--acc)}
+.row .mid{flex:1;min-width:0}
+.row .mid .t{font-weight:600;font-size:15px;overflow-wrap:anywhere}
+.row .mid .s{font-size:12px;color:var(--mut)}
+.row .val{font-family:var(--disp);font-weight:800;font-size:17px;white-space:nowrap}
+.pos{color:var(--acc)} .neg{color:var(--bad)}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:rgba(22,32,27,.96);backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+.tabs button{flex:1;padding:10px 2px;border-radius:12px;font-weight:600;font-size:12px;white-space:nowrap;color:var(--mut)}
+.tabs button[aria-pressed=true]{color:var(--acc-ink);background:var(--acc)}
+
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;max-height:90vh;display:flex;flex-direction:column;background:var(--surf);
+  border-radius:22px 22px 0 0;border-top:1px solid var(--line);transform:translateY(105%);transition:transform .25s ease;max-width:640px;margin:0 auto}
+.sheet.open{transform:none}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 8px}
+.sheet-h h3{font-family:var(--disp);font-size:20px;margin:0}
+.x{width:34px;height:34px;border-radius:50%;background:var(--surf2);font-size:18px;line-height:1}
+.sheet-b{padding:4px 16px calc(18px + env(safe-area-inset-bottom));overflow:auto}
+.lbl{display:block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px}
+input[type=text],input[type=number],textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;outline:none}
+input:focus,textarea:focus{border-color:var(--acc)}
+textarea{min-height:150px;resize:vertical}
+.btn{display:block;width:100%;padding:14px;border-radius:14px;font-weight:700;font-size:16px;margin-top:14px}
+.btn-p{background:var(--acc);color:var(--acc-ink)}
+.btn-s{background:var(--surf2);border:1px solid var(--line)}
+.btn-d{color:var(--bad);border:1px solid var(--line)}
+.btn:disabled{opacity:.5}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.who button{background:var(--surf2);border:1px solid var(--line);border-radius:12px;padding:12px 10px;font-weight:600;font-size:14px;text-align:left}
+.who button.sel{border-color:var(--acc);color:var(--acc)}
+.slip{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px}
+.slip .q{font-size:13px;color:var(--mut)}
+.slip .o{font-family:var(--disp);font-weight:800;font-size:19px;margin-top:2px}
+.quick{display:flex;gap:8px;margin-top:8px}
+.quick button{flex:1;padding:9px 4px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);font-weight:600;font-size:14px}
+.est{display:flex;justify-content:space-between;margin-top:12px;font-size:14px;color:var(--mut)}
+.est b{color:var(--acc);font-family:var(--disp);font-size:17px}
+.note{font-size:12px;color:var(--mut);margin-top:10px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none;margin-left:4px}
+.dot.on{background:var(--acc);box-shadow:0 0 0 4px rgba(200,241,105,.15)}
+button.row{width:100%;text-align:left}
+.tog{display:flex;gap:12px;align-items:flex-start;margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer}
+.tog input{width:22px;height:22px;accent-color:var(--acc);flex:none;margin:1px 0 0}
+.tog small{display:block;color:var(--mut);font-size:13px;margin-top:3px}
+.dq{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:14px}
+.dwho{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}
+.dtxt{font-family:var(--disp);font-weight:800;font-size:22px;line-height:1.15;margin-top:6px;letter-spacing:-.02em}
+.dtags{display:flex;gap:6px;margin-top:10px}
+.dtags span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgba(200,241,105,.14);color:var(--acc)}
+.mline{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--mut);margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surf2)}
+.mline b{color:var(--txt)}
+.rule{font-size:14px;color:var(--mut);margin:16px 0 0}
+.wait{text-align:center;color:var(--mut);margin:22px 0 4px;font-size:15px}
+.wait b{color:var(--txt);font-family:var(--disp);font-size:20px}
+.cd{font-family:var(--disp);font-weight:800;font-size:110px;line-height:1;text-align:center;color:var(--acc);margin:24px 0 6px}
+.reveal{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.reveal div{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:14px 10px;text-align:center}
+.reveal small{display:block;font-size:12px;color:var(--mut);font-weight:600;overflow-wrap:anywhere}
+.reveal b{font-family:var(--disp);font-weight:800;font-size:46px;line-height:1.1}
+.reveal.same div{border-color:var(--acc)} .reveal.same b{color:var(--acc)}
+.verdict{text-align:center;font-family:var(--disp);font-weight:800;font-size:22px;margin:16px 0 4px;letter-spacing:-.02em}
+.verdict.hit{color:var(--acc)}
+.duelbar{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:7;background:var(--acc);color:var(--acc-ink);
+  font-weight:700;font-size:14px;padding:12px 14px;border-radius:14px;text-align:left;max-width:616px;margin:0 auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--txt);color:var(--bg);
+  padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:var(--bad);color:#200a04}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo">Bite<span>Clic</span></div>
+  <button class="me" id="me"><span class="n" id="meName">Qui es-tu ?</span><b id="meSolde">-</b></button>
+</header>
+<div class="demo" id="demo" hidden>Mode démo : les données restent sur ce téléphone. Renseigne API_URL dans le fichier pour jouer à plusieurs.</div>
+
+<main>
+  <section id="vParis">
+    <div class="seg" id="segParis">
+      <button data-f="cours" aria-pressed="true">En cours</button>
+      <button data-f="fini" aria-pressed="false">Terminés</button>
+    </div>
+    <div id="list"><p class="empty">Chargement</p></div>
+    <button class="btn btn-p" id="btnNew" hidden>Proposer un pari</button>
+    <p class="note" id="creditNote" style="text-align:center"></p>
+    <button class="link" id="btnAdmin">Administration</button>
+  </section>
+  <section id="vPC" hidden>
+    <h2>Pour combien ?</h2>
+    <p class="note" style="margin:-6px 0 14px">Choisis un adversaire et lance-lui un défi.</p>
+    <div id="pcPlayers"></div>
+    <h2 style="margin-top:26px">Derniers défis</h2>
+    <div id="pcHist"></div>
+  </section>
+  <section id="vMises" hidden>
+    <h2>Mes mises</h2>
+    <div id="mises"></div>
+  </section>
+  <section id="vRank" hidden>
+    <h2>Classement</h2>
+    <div class="seg" id="segRank">
+      <button data-r="paris" aria-pressed="true">Paris</button>
+      <button data-r="pc" aria-pressed="false">Pour combien</button>
+    </div>
+    <div id="rank"></div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-v="vParis" aria-pressed="true">Paris</button>
+  <button data-v="vPC" aria-pressed="false">Pour combien</button>
+  <button data-v="vMises" aria-pressed="false">Mes mises</button>
+  <button data-v="vRank" aria-pressed="false">Classement</button>
+</nav>
+
+<button class="duelbar" id="duelBar" hidden></button>
+<div class="scrim" id="scrim"></div>
+
+<section class="sheet" id="shLaunch">
+  <div class="sheet-h"><h3>Lancer un défi</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b">
+    <div class="slip"><div class="q">Adversaire</div><div class="o" id="lTarget"></div></div>
+    <label class="lbl" for="lDefi">Pour combien tu...</label>
+    <input type="text" id="lDefi" maxlength="120" placeholder="sautes dans la piscine tout habillé">
+    <label class="tog"><input type="checkbox" id="lRev"><span><b>Reverse</b><small>Si vous ne tombez pas sur le même nombre, une 2e manche se joue avec le max divisé par deux. Si là vous tombez pareil, c'est toi qui fais ton propre défi.</small></span></label>
+    <button class="btn btn-p" id="lSend">Envoyer le défi</button>
+  </div>
+</section>
+
+<section class="sheet" id="shDuel">
+  <div class="sheet-h"><h3>Pour combien ?</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b" id="duelBody"></div>
+</section>
+
+<section class="sheet" id="shWho">
+  <div class="sheet-h"><h3>Qui es-tu ?</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b"><div class="who" id="whoList"></div><p class="note">Le téléphone retient ton nom. Chacun démarre avec le même nombre de jetons.</p></div>
+</section>
+
+<section class="sheet" id="shBet">
+  <div class="sheet-h"><h3>Ta mise</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b">
+    <div class="slip"><div class="q" id="betQ"></div><div class="o" id="betO"></div></div>
+    <label class="lbl" for="betAmt">Jetons misés</label>
+    <input type="number" id="betAmt" inputmode="numeric" min="1" step="1" placeholder="0">
+    <div class="quick" id="quick">
+      <button data-add="50">+50</button><button data-add="100">+100</button><button data-add="250">+250</button><button data-add="all">Tapis</button>
+    </div>
+    <div class="est"><span>Gain estimé si ça passe</span><b id="betEst">-</b></div>
+    <p class="note">Pari mutuel : la cagnotte est partagée entre les gagnants, la cote bouge donc jusqu'à la fermeture des mises. Une mise validée ne s'annule pas.</p>
+    <button class="btn btn-p" id="betOk">Valider la mise</button>
+  </div>
+</section>
+
+<section class="sheet" id="shPari">
+  <div class="sheet-h"><h3 id="pariT">Nouveau pari</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b">
+    <label class="lbl" for="pTitre">Question</label>
+    <input type="text" id="pTitre" maxlength="140" placeholder="Premier à...">
+    <label class="lbl" for="pOpts">Options (une par ligne)</label>
+    <textarea id="pOpts" spellcheck="false"></textarea>
+    <button class="btn btn-s" id="pFill">Mettre les joueurs en options</button>
+    <p class="note" id="pNote"></p>
+    <button class="btn btn-p" id="pSave">Enregistrer</button>
+    <button class="btn btn-d" id="pDel" hidden>Supprimer ce pari (mises remboursées)</button>
+  </div>
+</section>
+
+<section class="sheet" id="shRegler">
+  <div class="sheet-h"><h3>Qui a gagné ?</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b"><p class="note" id="regQ" style="margin-top:0"></p><div class="who" id="regList"></div>
+  <p class="note">Si personne n'a misé sur le bon résultat, tout le monde est remboursé.</p></div>
+</section>
+
+<section class="sheet" id="shAdmin">
+  <div class="sheet-h"><h3>Administration</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b">
+    <p class="note" style="margin-top:0">Mode admin actif : les boutons Modifier, Fermer et Régler apparaissent sur chaque pari. En admin, tu crées des paris sans limite de crédit.</p>
+    <label class="lbl" for="aJoueurs">Joueurs (un par ligne)</label>
+    <textarea id="aJoueurs" spellcheck="false"></textarea>
+    <label class="lbl" for="aDepart">Jetons de départ</label>
+    <input type="number" id="aDepart" inputmode="numeric" min="1">
+    <label class="lbl" for="aPin">Nouveau code admin (laisser vide pour garder l'actuel)</label>
+    <input type="text" id="aPin" autocomplete="off">
+    <button class="btn btn-p" id="aSave">Enregistrer</button>
+    <button class="btn btn-s" id="aQuit">Quitter le mode admin</button>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ====== A RENSEIGNER : URL de l'API BiteClic (Supabase) ====== */
+const API_URL = 'https://ygldrltvnizhjnvvvmwq.supabase.co/functions/v1/biteclic';
+
+/* ===== Logique commune (identique dans la page et dans le script) ===== */
+function cleanList_(a) {
+  var out = [];
+  (a || []).forEach(function (x) { x = String(x == null ? '' : x).trim(); if (x && out.indexOf(x) < 0) out.push(x); });
+  return out;
+}
+function jourSBH_(now) { return new Date(now - 4 * 3600000).toISOString().slice(0, 10); }
+function uid_(p) { return p + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36); }
+function gainsPari(p, mises) {
+  var g = {}, total = 0, win = 0;
+  var ms = mises.filter(function (m) { return m.pari === p.id; });
+  ms.forEach(function (m) { total += m.montant; if (m.option === p.gagnant) win += m.montant; });
+  ms.forEach(function (m) {
+    var v = win > 0 ? (m.option === p.gagnant ? Math.floor(m.montant * total / win) : 0) : m.montant;
+    g[m.joueur] = (g[m.joueur] || 0) + v;
+  });
+  return g;
+}
+function calcSoldes(db) {
+  var s = {};
+  db.joueurs.forEach(function (j) { s[j] = db.config.depart; });
+  db.mises.forEach(function (m) { if (m.joueur in s) s[m.joueur] -= m.montant; });
+  db.paris.forEach(function (p) {
+    if (p.statut !== 'regle') return;
+    var g = gainsPari(p, db.mises);
+    for (var j in g) if (j in s) s[j] += g[j];
+  });
+  return s;
+}
+/* --- Pour combien ? --- */
+var DUEL_REVEAL = 5000, DUEL_TTL_ATTENTE = 10 * 60000, DUEL_TTL_JEU = 20 * 60000;
+function duelActif_(d) { return d.statut === 'attente' || d.statut === 'jeu'; }
+function advanceDuel(d, now) {
+  if (d.statut === 'attente') { if (now - d.maj > DUEL_TTL_ATTENTE) { d.statut = 'expire'; d.maj = d.maj + DUEL_TTL_ATTENTE; } return; }
+  if (d.statut !== 'jeu') return;
+  var m = d.manches[d.manches.length - 1];
+  if (!m.revealAt) { if (now - d.maj > DUEL_TTL_JEU) { d.statut = 'expire'; d.maj = d.maj + DUEL_TTL_JEU; } return; }
+  if (now < m.revealAt) return;
+  if (m.de === m.a) { d.statut = 'fini'; d.perdant = d.manches.length === 1 ? d.a : d.de; d.maj = m.revealAt; }
+  else if (d.manches.length === 1 && d.reverse) { d.manches.push({ max: Math.max(1, Math.floor(m.max / 2)), de: 0, a: 0, revealAt: 0 }); d.maj = m.revealAt; }
+  else { d.statut = 'fini'; d.perdant = ''; d.maj = m.revealAt; }
+}
+function maskDuel_(d) {
+  var c = JSON.parse(JSON.stringify(d));
+  c.manches = c.manches.map(function (m) {
+    if (m.de && m.a) return m;
+    return { max: m.max, de: m.de ? -1 : 0, a: m.a ? -1 : 0, revealAt: 0 };
+  });
+  return c;
+}
+function statsPC(db) {
+  var s = {};
+  db.joueurs.forEach(function (j) { s[j] = { inflige: 0, subi: 0, reverse: 0, refuse: 0, joues: 0 }; });
+  (db.defis || []).forEach(function (d) {
+    if (d.statut === 'refuse' && s[d.a]) s[d.a].refuse++;
+    if (d.statut !== 'fini') return;
+    [d.de, d.a].forEach(function (j) {
+      if (!s[j]) return;
+      s[j].joues++;
+      if (!d.perdant) return;
+      if (d.perdant === j) { s[j].subi++; if (j === d.de) s[j].reverse++; }
+      else s[j].inflige++;
+    });
+  });
+  return s;
+}
+function publicState(db, now) {
+  now = now || Date.now(); db.defis = db.defis || [];
+  db.defis.forEach(function (d) { advanceDuel(d, now); });
+  var defis = db.defis.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 40).map(maskDuel_);
+  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now };
+}
+function applyAction(db, a, now) {
+  now = now || Date.now(); db.defis = db.defis || [];
+  db.defis.forEach(function (d) { advanceDuel(d, now); });
+  function fail(m) { throw new Error(m); }
+  function findPari(id) {
+    var p = db.paris.filter(function (x) { return x.id === id; })[0];
+    if (!p) fail('Ce pari n\'existe plus.');
+    return p;
+  }
+  function findDuel(id) {
+    var d = db.defis.filter(function (x) { return x.id === id; })[0];
+    if (!d) fail('Ce défi n\'existe plus.');
+    return d;
+  }
+  if (a.action === 'defi_lancer') {
+    var txt = String(a.defi || '').trim().slice(0, 120);
+    if (db.joueurs.indexOf(a.joueur) < 0 || db.joueurs.indexOf(a.cible) < 0) fail('Joueur inconnu.');
+    if (a.joueur === a.cible) fail('Tu ne peux pas te défier toi-même.');
+    if (!txt) fail('Il faut écrire le défi.');
+    db.defis.forEach(function (d) {
+      if (!duelActif_(d)) return;
+      if (d.de === a.joueur || d.a === a.joueur) fail('Tu as déjà un défi en cours.');
+      if (d.de === a.cible || d.a === a.cible) fail(a.cible + ' a déjà un défi en cours.');
+    });
+    db.defis.push({ id: uid_('d'), de: a.joueur, a: a.cible, defi: txt, reverse: !!a.reverse, max: 0, statut: 'attente', manches: [], perdant: '', ts: now, maj: now });
+    return;
+  }
+  if (a.action === 'defi_repondre') {
+    var r0 = findDuel(a.id);
+    if (r0.statut !== 'attente') fail('Ce défi n\'attend plus de réponse.');
+    if (a.joueur !== r0.a) fail('Ce défi ne t\'est pas adressé.');
+    if (!a.accepte) { r0.statut = 'refuse'; r0.maj = now; return; }
+    var mx = Math.floor(Number(a.max));
+    if (!(mx >= 2 && mx <= 1000)) fail('Le max doit être entre 2 et 1000.');
+    r0.max = mx; r0.manches = [{ max: mx, de: 0, a: 0, revealAt: 0 }]; r0.statut = 'jeu'; r0.maj = now;
+    return;
+  }
+  if (a.action === 'defi_jouer') {
+    var j0 = findDuel(a.id);
+    if (j0.statut !== 'jeu') fail('Ce défi n\'est pas en cours.');
+    var role = a.joueur === j0.de ? 'de' : (a.joueur === j0.a ? 'a' : '');
+    if (!role) fail('Tu ne joues pas ce défi.');
+    var mc = j0.manches[j0.manches.length - 1];
+    if (mc.revealAt) fail('Cette manche est déjà jouée.');
+    if (mc[role]) fail('Tu as déjà donné ton nombre.');
+    var nb = Math.floor(Number(a.nombre));
+    if (!(nb >= 1 && nb <= mc.max)) fail('Le nombre doit être entre 1 et ' + mc.max + '.');
+    mc[role] = nb; j0.maj = now;
+    if (mc.de && mc.a) mc.revealAt = now + DUEL_REVEAL;
+    return;
+  }
+  if (a.action === 'defi_annuler') {
+    var x0 = findDuel(a.id);
+    if (a.joueur !== x0.de && a.joueur !== x0.a) fail('Tu ne joues pas ce défi.');
+    if (!duelActif_(x0)) return;
+    x0.statut = 'annule'; x0.maj = now;
+    return;
+  }
+  if (a.action === 'pari_proposer') {
+    var tp = String(a.titre || '').trim().slice(0, 140), op = cleanList_(a.options);
+    if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
+    if (!tp) fail('Il faut une question.');
+    if (op.length < 2) fail('Il faut au moins 2 options.');
+    if (op.length > 30) fail('30 options maximum.');
+    var jr = jourSBH_(now);
+    if (db.paris.some(function (x) { return x.auteur === a.joueur && x.jour === jr; })) fail('Tu as déjà utilisé ton crédit du jour. Reviens demain.');
+    db.paris.push({ id: uid_('p'), titre: tp, options: op, statut: 'ouvert', gagnant: '', auteur: a.joueur, jour: jr });
+    return;
+  }
+  if (a.action === 'pari_retirer') {
+    var pr = findPari(a.id);
+    if (pr.auteur !== a.joueur) fail('Ce pari n\'est pas à toi.');
+    if (db.mises.some(function (m) { return m.pari === pr.id; })) fail('Il y a déjà des mises, seul l\'admin peut le supprimer.');
+    db.paris = db.paris.filter(function (x) { return x.id !== pr.id; });
+    return;
+  }
+  if (a.action === 'miser') {
+    var p = findPari(a.pari), montant = Math.floor(Number(a.montant));
+    if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
+    if (p.statut !== 'ouvert') fail('Les mises sont fermées sur ce pari.');
+    if (p.options.indexOf(a.option) < 0) fail('Option inconnue.');
+    if (!(montant >= 1)) fail('Mise invalide.');
+    if (montant > calcSoldes(db)[a.joueur]) fail('Pas assez de jetons.');
+    db.mises.push({ id: uid_('m'), pari: p.id, joueur: a.joueur, option: a.option, montant: montant, ts: Date.now() });
+    return;
+  }
+  if (String(a.pin || '') !== String(db.config.pin)) fail('Code admin incorrect.');
+  if (a.action === 'pin_check') return;
+  if (a.action === 'pari_save') {
+    var titre = String(a.titre || '').trim(), options = cleanList_(a.options);
+    if (!titre) fail('Il faut une question.');
+    if (options.length < 2) fail('Il faut au moins 2 options.');
+    if (a.id) {
+      var e = findPari(a.id);
+      if (e.statut === 'regle') fail('Ce pari est déjà réglé.');
+      db.mises.forEach(function (m) {
+        if (m.pari === e.id && options.indexOf(m.option) < 0) fail('Impossible de retirer « ' + m.option + ' » : il y a déjà des mises dessus.');
+      });
+      e.titre = titre; e.options = options;
+    } else {
+      db.paris.push({ id: uid_('p'), titre: titre, options: options, statut: 'ouvert', gagnant: '', auteur: '', jour: jourSBH_(now) });
+    }
+    return;
+  }
+  if (a.action === 'pari_statut') {
+    var q = findPari(a.id);
+    if (a.statut !== 'ouvert' && a.statut !== 'ferme') fail('Statut invalide.');
+    q.statut = a.statut; q.gagnant = '';
+    return;
+  }
+  if (a.action === 'pari_regler') {
+    var r = findPari(a.id);
+    if (r.options.indexOf(a.gagnant) < 0) fail('Option inconnue.');
+    r.statut = 'regle'; r.gagnant = a.gagnant;
+    return;
+  }
+  if (a.action === 'pari_supprimer') {
+    findPari(a.id);
+    db.paris = db.paris.filter(function (x) { return x.id !== a.id; });
+    db.mises = db.mises.filter(function (m) { return m.pari !== a.id; });
+    return;
+  }
+  if (a.action === 'config') {
+    var joueurs = cleanList_(a.joueurs), depart = Math.floor(Number(a.depart));
+    if (!joueurs.length) fail('La liste des joueurs est vide.');
+    if (!(depart >= 1)) fail('Nombre de jetons invalide.');
+    db.joueurs = joueurs; db.config.depart = depart;
+    if (a.newPin) db.config.pin = String(a.newPin).trim();
+    return;
+  }
+  fail('Action inconnue.');
+}
+/* ===== Fin de la logique commune ===== */
+
+
+const DEMO = API_URL.indexOf('http') !== 0;
+const LS_ME = 'biteclic_moi', LS_DEMO = 'biteclic_demo', SS_PIN = 'biteclic_pin';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Math.round(n).toLocaleString('fr-FR');
+const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch(e){} } };
+
+let state = null, me = store.get(LS_ME) || '', filtre = 'cours', bet = null, editId = null, busy = false;
+let rankMode = 'paris';
+let offset = 0, lastKey = '', launchTarget = '', pollT = null;
+let pin = ''; try { pin = sessionStorage.getItem(SS_PIN) || ''; } catch(e){}
+
+/* ---------- API ---------- */
+function demoDb(){
+  try { const d = JSON.parse(store.get(LS_DEMO)); if (d && d.paris) return d; } catch(e){}
+  const j = ["ADC OHAYON", "ADJ CAUTURE", "MDC WACHEUX", "GND NAVA", "GND MERCIER", "GND CHAPON", "GND BERTHELOT J.", "GND BARTOLO", "GND CAUVIN", "GND CAILLABA", "GND HOCHART", "GND ABALOS", "GND BERTHELOT N.", "GND CORADI"];
+  return { config:{ pin:'1234', depart:1000 }, joueurs:j, mises:[], paris:[
+    { id:'p1', titre:'Premier à prendre un coup de soleil mémorable', options:j.slice(), statut:'ouvert', gagnant:'' },
+    { id:'p2', titre:'Premier à perdre ses clés de scooter', options:j.slice(), statut:'ouvert', gagnant:'' },
+    { id:'p3', titre:"Combien de jours avant qu'un téléphone finisse à l'eau", options:['Moins de 15 jours','15 à 30 jours','31 à 60 jours',"Ça n'arrivera pas"], statut:'ouvert', gagnant:'' }
+  ]};
+}
+async function api(payload){
+  if (DEMO) {
+    const db = demoDb();
+    if (!db.defis) db.defis = [];
+    if (payload) { applyAction(db, payload, Date.now()); store.set(LS_DEMO, JSON.stringify(db)); }
+    const st = JSON.parse(JSON.stringify(publicState(db, Date.now())));
+    st.enLigne = me ? [me] : []; offset = 0;
+    return st;
+  }
+  const t0 = Date.now();
+  const r = payload ? await fetch(API_URL, { method:'POST', body: JSON.stringify(payload) }) : await fetch(API_URL + (me ? '?moi=' + encodeURIComponent(me) : ''));
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Erreur');
+  if (j.now) offset = j.now - Math.round((t0 + Date.now()) / 2);
+  return j;
+}
+async function send(payload, okMsg, btn){
+  if (busy) return false;
+  busy = true; if (btn) btn.disabled = true;
+  try { state = await api(payload); render(); if (okMsg) toast(okMsg); return true; }
+  catch(e){ toast(e.message || 'Erreur réseau', true); return false; }
+  finally { busy = false; if (btn) btn.disabled = false; }
+}
+async function refresh(){
+  if (busy) return;
+  try { state = await api(); render(); } catch(e){ if (!state) $('list').innerHTML = '<p class="empty">Connexion impossible. Vérifie l\'URL du script.</p>'; }
+}
+
+/* ---------- Outils ---------- */
+let toastT;
+function toast(m, err){ const t = $('toast'); t.textContent = m; t.className = 'toast show' + (err ? ' err' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', 2600); }
+function openSheet(id){ document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $(id).classList.add('open'); $('scrim').classList.add('open'); }
+function closeSheets(){ const dd = myDuel(); if ($('shDuel').classList.contains('open') && dd && !actif(dd)) markSeen(dd.id); document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $('scrim').classList.remove('open'); }
+function pools(p){ const o = {}; let t = 0; p.options.forEach(x => o[x] = 0); state.mises.forEach(m => { if (m.pari === p.id) { o[m.option] = (o[m.option] || 0) + m.montant; t += m.montant; } }); return { o, t }; }
+function creditDispo(){ if (!me || !state) return false; const j = jourSBH_(sNow()); return !state.paris.some(p => p.auteur === me && p.jour === j); }
+function pari(id){ return state.paris.find(p => p.id === id); }
+const LBL = { ouvert:'Ouvert', ferme:'Mises fermées', regle:'Réglé' };
+
+/* ---------- Rendu ---------- */
+function render(){
+  if (!state) return;
+  if (me && state.joueurs.indexOf(me) < 0) me = '';
+  $('meName').textContent = me || 'Qui es-tu ?';
+  $('meSolde').textContent = me ? fmt(state.soldes[me]) : '-';
+  const cr = creditDispo();
+  $('btnNew').hidden = !me && !pin;
+  $('btnNew').textContent = pin ? 'Nouveau pari' : 'Proposer un pari';
+  $('btnNew').disabled = !pin && !cr;
+  $('creditNote').textContent = pin || !me ? '' : (cr ? '1 crédit disponible aujourd\'hui pour proposer un pari.' : 'Crédit du jour utilisé. Prochain crédit demain.');
+  $('btnAdmin').textContent = pin ? 'Réglages admin' : 'Administration';
+  renderParis(); renderMises(); renderRank(); renderPC(); syncDuel();
+}
+function renderParis(){
+  const ps = state.paris.filter(p => filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle').slice().reverse();
+  if (!ps.length) { $('list').innerHTML = '<p class="empty">' + (filtre === 'cours' ? 'Aucun pari en cours.' : 'Aucun pari terminé pour le moment.') + '</p>'; return; }
+  $('list').innerHTML = ps.map(p => {
+    const { o, t } = pools(p);
+    const mine = {}; state.mises.forEach(m => { if (m.pari === p.id && m.joueur === me) mine[m.option] = (mine[m.option] || 0) + m.montant; });
+    const odds = p.options.map((x, i) => {
+      const cls = p.statut === 'regle' ? (x === p.gagnant ? ' win' : ' lose') : '';
+      return '<button class="odd' + cls + '" data-id="' + esc(p.id) + '" data-i="' + i + '"' + (p.statut !== 'ouvert' ? ' disabled' : '') + '>' +
+        '<span class="on">' + esc(x) + (mine[x] ? '<small>Ta mise ' + fmt(mine[x]) + '</small>' : '') + '</span>' +
+        '<span class="oc">' + (o[x] ? 'x' + (t / o[x]).toFixed(2) : '-') + '</span>' +
+        (t ? '<i class="bar" style="width:' + Math.round(100 * o[x] / t) + '%"></i>' : '') + '</button>';
+    }).join('');
+    const adm = !pin ? '' : '<div class="adm-row">' +
+      (p.statut !== 'regle' ? '<button class="chip" data-act="edit" data-id="' + esc(p.id) + '">Modifier</button>' : '') +
+      (p.statut === 'ouvert' ? '<button class="chip" data-act="ferme" data-id="' + esc(p.id) + '">Fermer les mises</button>' : '') +
+      (p.statut === 'ferme' ? '<button class="chip" data-act="ouvert" data-id="' + esc(p.id) + '">Rouvrir</button>' : '') +
+      (p.statut !== 'regle' ? '<button class="chip" data-act="regler" data-id="' + esc(p.id) + '">Régler</button>' : '<button class="chip" data-act="ferme" data-id="' + esc(p.id) + '">Annuler le résultat</button>') +
+      '<button class="chip danger" data-act="del" data-id="' + esc(p.id) + '">Supprimer</button></div>';
+    return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span><span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
+      '<h3>' + esc(p.titre) + '</h3>' + (p.auteur ? '<p class="note" style="margin:-6px 0 10px">Proposé par ' + esc(p.auteur) + '</p>' : '') +
+      '<div class="odds">' + odds + '</div>' + adm +
+      (!pin && p.auteur && p.auteur === me && !t ? '<div class="adm-row"><button class="chip danger" data-act="retirer" data-id="' + esc(p.id) + '">Retirer mon pari</button></div>' : '') + '</article>';
+  }).join('');
+}
+function renderMises(){
+  if (!me) { $('mises').innerHTML = '<p class="empty">Choisis ton nom en haut à droite pour voir tes mises.</p>'; return; }
+  const ms = state.mises.filter(m => m.joueur === me).slice().reverse();
+  if (!ms.length) { $('mises').innerHTML = '<p class="empty">Aucune mise pour le moment.</p>'; return; }
+  $('mises').innerHTML = ms.map(m => {
+    const p = pari(m.pari); if (!p) return '';
+    let val = '-' + fmt(m.montant), cls = '', st = 'En cours';
+    if (p.statut === 'ferme') st = 'Mises fermées, en attente du résultat';
+    if (p.statut === 'regle') {
+      const { o, t } = pools(p), win = o[p.gagnant] || 0;
+      if (!win) { st = 'Remboursé (personne n\'avait le bon résultat)'; val = '0'; }
+      else if (m.option === p.gagnant) { const g = Math.floor(m.montant * t / win); st = 'Gagné'; val = '+' + fmt(g - m.montant); cls = 'pos'; }
+      else { st = 'Perdu'; cls = 'neg'; }
+    }
+    return '<div class="row"><div class="mid"><div class="t">' + esc(m.option) + '</div><div class="s">' + esc(p.titre) + '</div><div class="s">Mise ' + fmt(m.montant) + ' - ' + st + '</div></div><div class="val ' + cls + '">' + val + '</div></div>';
+  }).join('');
+}
+function renderRank(){
+  if (rankMode === 'pc') return renderRankPC();
+  const enJeu = {};
+  state.mises.forEach(m => { const p = pari(m.pari); if (p && p.statut !== 'regle') enJeu[m.joueur] = (enJeu[m.joueur] || 0) + m.montant; });
+  const rows = state.joueurs.map(j => ({ j, s: state.soldes[j], e: enJeu[j] || 0 })).sort((a, b) => (b.s + b.e) - (a.s + a.e));
+  $('rank').innerHTML = rows.map((r, i) => '<div class="row' + (i === 0 ? ' first' : '') + (r.j === me ? ' self' : '') + '"><div class="rk">' + (i + 1) + '</div>' +
+    '<div class="mid"><div class="t">' + esc(r.j) + '</div><div class="s">' + (r.e ? fmt(r.e) + ' en jeu' : 'Rien en jeu') + '</div></div>' +
+    '<div class="val">' + fmt(r.s) + '</div></div>').join('') + '<p class="note">Classement sur les jetons disponibles plus les jetons en jeu.</p>';
+}
+
+/* ---------- Pour combien ? ---------- */
+const LS_SEEN = 'biteclic_vus';
+const sNow = () => Date.now() + offset;
+const actif = d => d.statut === 'attente' || d.statut === 'jeu';
+const rev = m => !!(m && m.revealAt && sNow() >= m.revealAt);
+function seen(){ try { return JSON.parse(store.get(LS_SEEN)) || []; } catch(e){ return []; } }
+function markSeen(id){ const s = seen(); if (s.indexOf(id) < 0) { s.push(id); store.set(LS_SEEN, JSON.stringify(s.slice(-60))); } }
+function myDuel(){
+  if (!state || !me || !state.defis) return null;
+  const mine = state.defis.filter(d => d.de === me || d.a === me);
+  return mine.find(actif) || mine.find(d => seen().indexOf(d.id) < 0 && sNow() - d.maj < 15 * 60000) || null;
+}
+function lastM(d){ return d.manches[d.manches.length - 1]; }
+function duelKey(d){ const m = lastM(d); return [d.id, d.statut, d.manches.length, m ? m.de : '', m ? m.a : '', m ? m.revealAt : '', rev(m) ? 1 : 0, me].join('|'); }
+function revealHtml(d, m){
+  return '<div class="reveal' + (m.de === m.a ? ' same' : '') + '"><div><small>' + esc(d.de) + '</small><b>' + m.de + '</b></div><div><small>' + esc(d.a) + '</small><b>' + m.a + '</b></div></div>';
+}
+function verdictHtml(d, perdant){
+  if (!perdant) return '<div class="verdict">Pas le même nombre, personne ne fait le défi.</div>';
+  return '<div class="verdict hit">' + (perdant === me ? "C'est toi qui t'y colles !" : esc(perdant) + ' se prend le défi !') + '</div>';
+}
+function duelHtml(d){
+  const iDe = d.de === me, other = iDe ? d.a : d.de;
+  let h = '<div class="dq"><div class="dwho">' + esc(d.de) + ' défie ' + esc(d.a) + '</div><div class="dtxt">Pour combien tu ' + esc(d.defi) + ' ?</div>' +
+    '<div class="dtags">' + (d.max ? '<span>1 à ' + d.max + '</span>' : '') + (d.reverse ? '<span>Reverse</span>' : '') + '</div></div>';
+  const n = d.manches.length;
+  d.manches.forEach((m, i) => { if (i < n - 1 && rev(m)) h += '<div class="mline"><span>Manche ' + (i + 1) + ' (1 à ' + m.max + ')</span><b>' + m.de + ' / ' + m.a + '</b></div>'; });
+  const fermer = '<button class="btn btn-s" data-d="close">Fermer</button>';
+  if (d.statut === 'attente') {
+    if (d.a === me) return h + '<label class="lbl" for="dMax">Pour combien ? Donne ton max</label><input type="number" id="dMax" inputmode="numeric" min="2" max="1000" placeholder="300">' +
+      '<div class="quick">' + [10, 20, 50, 100, 300].map(v => '<button data-v="' + v + '">' + v + '</button>').join('') + '</div>' +
+      '<button class="btn btn-p" data-d="accept">Accepter le défi</button><button class="btn btn-d" data-d="refuse">Refuser</button>';
+    return h + '<p class="wait">En attente de la réponse de <b>' + esc(other) + '</b></p><button class="btn btn-s" data-d="annuler">Annuler le défi</button>';
+  }
+  if (d.statut === 'jeu') {
+    const m = lastM(d), i = n - 1;
+    if (m.revealAt && !rev(m)) return h + '<div class="cd" id="cdNum">5</div><p class="wait" style="margin-top:0">Les deux nombres sont joués</p>';
+    if (rev(m)) {
+      const same = m.de === m.a;
+      return h + revealHtml(d, m) + (same ? verdictHtml(d, i === 0 ? d.a : d.de) :
+        (i === 0 && d.reverse ? '<div class="verdict hit">Pas pareil... mais reverse !</div><p class="wait" style="margin-top:4px">2e manche dans un instant</p>' : verdictHtml(d, '')));
+    }
+    const mine = iDe ? m.de : m.a;
+    const cible = i === 0 ? d.a : d.de;
+    const rule = (i === 0 ? 'Manche 1' : 'Reverse, manche 2') + ' : choisis un nombre entre 1 et ' + m.max + '. Si vous tombez pareil, ' +
+      (cible === me ? (i === 0 ? 'tu fais le défi.' : 'tu fais ton propre défi.') : esc(cible) + (i === 0 ? ' fait le défi.' : ' fait son propre défi.'));
+    const ab = '<button class="link" data-d="annuler">Abandonner</button>';
+    if (!mine) return h + '<p class="rule">' + rule + '</p><label class="lbl" for="dNum">Ton nombre (secret)</label><input type="number" id="dNum" inputmode="numeric" min="1" max="' + m.max + '" placeholder="1 à ' + m.max + '">' +
+      '<button class="btn btn-p" data-d="jouer">Valider mon nombre</button>' + ab;
+    const v = store.get('bc_n_' + d.id + '_' + i);
+    return h + '<p class="wait">Ton nombre : <b>' + esc(v || 'joué') + '</b><br>En attente de ' + esc(other) + '...</p>' + ab;
+  }
+  if (d.statut === 'fini') { const m = lastM(d); return h + revealHtml(d, m) + verdictHtml(d, d.perdant) + fermer; }
+  const msg = d.statut === 'refuse' ? (d.a === me ? 'Tu as refusé le défi.' : esc(d.a) + ' a refusé le défi.') :
+    d.statut === 'expire' ? 'Défi expiré, pas de réponse à temps.' : 'Défi annulé.';
+  return h + '<p class="wait">' + msg + '</p>' + fermer;
+}
+function syncDuel(){
+  const d = myDuel(), k = d ? duelKey(d) : '';
+  if (k !== lastKey) {
+    lastKey = k;
+    if (d) {
+      $('duelBody').innerHTML = duelHtml(d);
+      if (!document.querySelector('.sheet.open')) openSheet('shDuel');
+    } else if ($('shDuel').classList.contains('open')) closeSheets();
+  }
+  const open = $('shDuel').classList.contains('open');
+  $('duelBar').hidden = !d || open;
+  if (d && !open) $('duelBar').textContent = (actif(d) ? 'Défi en cours avec ' : 'Résultat du défi avec ') + (d.de === me ? d.a : d.de) + ' - ouvrir';
+  const cd = $('cdNum');
+  if (cd && d) { const m = lastM(d); cd.textContent = Math.max(1, Math.ceil((m.revealAt - sNow()) / 1000)); }
+}
+setInterval(syncDuel, 200);
+$('duelBar').addEventListener('click', () => openSheet('shDuel'));
+$('duelBody').addEventListener('click', async e => {
+  const q = e.target.closest('[data-v]');
+  if (q) { $('dMax').value = q.dataset.v; return; }
+  const b = e.target.closest('[data-d]'); if (!b) return;
+  const d = myDuel(); if (!d) return;
+  const act = b.dataset.d;
+  if (act === 'close') return closeSheets();
+  if (act === 'accept') {
+    const v = Math.floor(Number($('dMax').value));
+    if (!(v >= 2 && v <= 1000)) return toast('Choisis un max entre 2 et 1000.', true);
+    return send({ action:'defi_repondre', joueur: me, id: d.id, accepte: true, max: v }, 'Défi accepté', b);
+  }
+  if (act === 'refuse') { markSeen(d.id); await send({ action:'defi_repondre', joueur: me, id: d.id, accepte: false }, 'Défi refusé', b); return closeSheets(); }
+  if (act === 'annuler') {
+    if (!confirm(d.statut === 'attente' ? 'Annuler ce défi ?' : 'Abandonner ce défi ?')) return;
+    markSeen(d.id); await send({ action:'defi_annuler', joueur: me, id: d.id }, 'Défi annulé', b); return closeSheets();
+  }
+  if (act === 'jouer') {
+    const m = lastM(d), v = Math.floor(Number($('dNum').value));
+    if (!(v >= 1 && v <= m.max)) return toast('Entre 1 et ' + m.max + '.', true);
+    store.set('bc_n_' + d.id + '_' + (d.manches.length - 1), String(v));
+    return send({ action:'defi_jouer', joueur: me, id: d.id, nombre: v }, null, b);
+  }
+});
+function renderPC(){
+  if (!me) { $('pcPlayers').innerHTML = '<p class="empty">Choisis ton nom en haut à droite pour jouer.</p>'; $('pcHist').innerHTML = ''; return; }
+  const on = state.enLigne || [];
+  const others = state.joueurs.filter(j => j !== me).sort((a, b) => (on.indexOf(b) >= 0) - (on.indexOf(a) >= 0));
+  $('pcPlayers').innerHTML = others.map(j => {
+    const o = on.indexOf(j) >= 0;
+    return '<button class="row pl" data-i="' + state.joueurs.indexOf(j) + '"><i class="dot' + (o ? ' on' : '') + '"></i><div class="mid"><div class="t">' + esc(j) + '</div><div class="s">' + (o ? 'En ligne' : 'Hors ligne') + '</div></div><span class="chip">Défier</span></button>';
+  }).join('');
+  const hs = (state.defis || []).filter(d => d.statut === 'fini' || d.statut === 'refuse' || actif(d)).slice(0, 15);
+  $('pcHist').innerHTML = hs.length ? hs.map(d => {
+    const res = actif(d) ? 'En cours' : d.statut === 'refuse' ? 'Refusé' : d.perdant ? esc(d.perdant) + ' le fait' : 'Personne';
+    const cls = d.statut === 'fini' && d.perdant ? 'pos' : '';
+    return '<div class="row"><div class="mid"><div class="t">' + esc(d.de) + ' &rarr; ' + esc(d.a) + '</div><div class="s">Pour combien tu ' + esc(d.defi) + ' ?' + (d.max ? ' (1 à ' + d.max + ')' : '') + (d.reverse ? ' - reverse' : '') + '</div></div>' +
+      '<div class="val ' + cls + '" style="font-size:13px;max-width:40%;text-align:right;white-space:normal">' + res + '</div></div>';
+  }).join('') : '<p class="empty">Aucun défi pour le moment.</p>';
+}
+$('pcPlayers').addEventListener('click', e => {
+  const b = e.target.closest('.pl'); if (!b) return;
+  const d = myDuel();
+  if (d && actif(d)) { toast('Tu as déjà un défi en cours.', true); return openSheet('shDuel'); }
+  launchTarget = state.joueurs[+b.dataset.i];
+  $('lTarget').textContent = launchTarget; $('lDefi').value = ''; $('lRev').checked = false;
+  openSheet('shLaunch');
+});
+$('lSend').addEventListener('click', async () => {
+  const t = $('lDefi').value.trim().replace(/^pour combien( tu)?\s*/i, '').replace(/\s*\?+$/, '');
+  if (!t) return toast('Écris le défi.', true);
+  if (await send({ action:'defi_lancer', joueur: me, cible: launchTarget, defi: t, reverse: $('lRev').checked }, 'Défi envoyé', $('lSend'))) { closeSheets(); openSheet('shDuel'); }
+});
+
+function renderRankPC(){
+  const S = state.statsPC || {};
+  const rows = state.joueurs.map(j => Object.assign({ j }, S[j] || { inflige:0, subi:0, reverse:0, refuse:0, joues:0 }))
+    .sort((a, b) => (b.inflige - b.subi) - (a.inflige - a.subi) || b.inflige - a.inflige || a.subi - b.subi);
+  $('rank').innerHTML = rows.map((r, i) => {
+    const sc = r.inflige - r.subi;
+    const det = r.joues ? r.inflige + ' infligé' + (r.inflige > 1 ? 's' : '') + ' - ' + r.subi + ' subi' + (r.subi > 1 ? 's' : '') +
+      (r.reverse ? ' (dont ' + r.reverse + ' en reverse)' : '') : 'Aucun défi joué';
+    return '<div class="row' + (i === 0 && r.joues ? ' first' : '') + (r.j === me ? ' self' : '') + '"><div class="rk">' + (i + 1) + '</div>' +
+      '<div class="mid"><div class="t">' + esc(r.j) + '</div><div class="s">' + det + (r.refuse ? ' - ' + r.refuse + ' refusé' + (r.refuse > 1 ? 's' : '') : '') + '</div></div>' +
+      '<div class="val ' + (sc > 0 ? 'pos' : sc < 0 ? 'neg' : '') + '">' + (sc > 0 ? '+' : '') + sc + '</div></div>';
+  }).join('') + '<p class="note">Score = défis infligés moins défis subis. Un défi infligé, c\'est quand l\'adversaire se le prend (y compris le lanceur piégé par son propre reverse). Les refus sont affichés mais ne comptent pas dans le score.</p>';
+}
+$('segRank').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  rankMode = b.dataset.r;
+  document.querySelectorAll('#segRank button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  renderRank();
+});
+
+/* ---------- Identité ---------- */
+function openWho(){
+  if (!state) return;
+  $('whoList').innerHTML = state.joueurs.map((j, i) => '<button data-i="' + i + '"' + (j === me ? ' class="sel"' : '') + '>' + esc(j) + '</button>').join('');
+  openSheet('shWho');
+}
+$('me').addEventListener('click', openWho);
+$('whoList').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; me = state.joueurs[+b.dataset.i]; store.set(LS_ME, me); closeSheets(); render(); refresh().then(schedule); });
+
+/* ---------- Miser ---------- */
+function updEst(){
+  const p = pari(bet.id), s = Math.floor(Number($('betAmt').value)) || 0;
+  if (!p || s < 1) { $('betEst').textContent = '-'; return; }
+  const { o, t } = pools(p), g = Math.floor(s * (t + s) / ((o[bet.opt] || 0) + s));
+  $('betEst').textContent = fmt(g) + ' (x' + (g / s).toFixed(2) + ')';
+}
+$('list').addEventListener('click', e => {
+  const act = e.target.closest('[data-act]');
+  if (act) return adminAct(act.dataset.act, act.dataset.id);
+  const b = e.target.closest('.odd'); if (!b || b.disabled) return;
+  if (!me) return openWho();
+  const p = pari(b.dataset.id); if (!p) return;
+  bet = { id: p.id, opt: p.options[+b.dataset.i] };
+  $('betQ').textContent = p.titre; $('betO').textContent = bet.opt; $('betAmt').value = ''; updEst();
+  openSheet('shBet');
+});
+$('betAmt').addEventListener('input', updEst);
+$('quick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const max = state.soldes[me] || 0, cur = Math.floor(Number($('betAmt').value)) || 0;
+  $('betAmt').value = b.dataset.add === 'all' ? max : Math.min(max, cur + Number(b.dataset.add));
+  updEst();
+});
+$('betOk').addEventListener('click', async () => {
+  const s = Math.floor(Number($('betAmt').value)) || 0;
+  if (s < 1) return toast('Indique une mise.', true);
+  if (s > (state.soldes[me] || 0)) return toast('Pas assez de jetons.', true);
+  if (await send({ action:'miser', joueur: me, pari: bet.id, option: bet.opt, montant: s }, 'Mise enregistrée', $('betOk'))) closeSheets();
+});
+
+/* ---------- Admin ---------- */
+$('btnAdmin').addEventListener('click', async () => {
+  if (!pin) {
+    const v = prompt('Code admin');
+    if (!v) return;
+    busy = true;
+    try { await api({ action:'pin_check', pin: v }); pin = v; try { sessionStorage.setItem(SS_PIN, v); } catch(e){} }
+    catch(e){ busy = false; return toast(e.message || 'Erreur', true); }
+    busy = false; render(); toast('Mode admin activé');
+    return;
+  }
+  $('aJoueurs').value = state.joueurs.join('\n'); $('aDepart').value = state.depart; $('aPin').value = '';
+  openSheet('shAdmin');
+});
+$('aQuit').addEventListener('click', () => { pin = ''; try { sessionStorage.removeItem(SS_PIN); } catch(e){} closeSheets(); render(); });
+$('aSave').addEventListener('click', async () => {
+  const np = $('aPin').value.trim();
+  if (await send({ action:'config', pin, joueurs: $('aJoueurs').value.split('\n'), depart: $('aDepart').value, newPin: np }, 'Réglages enregistrés', $('aSave'))) {
+    if (np) { pin = np; try { sessionStorage.setItem(SS_PIN, np); } catch(e){} }
+    closeSheets();
+  }
+});
+function openPari(id){
+  editId = id || null;
+  const p = id ? pari(id) : null;
+  $('pariT').textContent = p ? 'Modifier le pari' : 'Nouveau pari';
+  $('pTitre').value = p ? p.titre : ''; $('pOpts').value = p ? p.options.join('\n') : '';
+  $('pDel').hidden = !p;
+  $('pNote').textContent = pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.';
+  openSheet('shPari');
+}
+$('btnNew').addEventListener('click', () => { if (!me) return openWho(); openPari(); });
+$('pFill').addEventListener('click', () => { $('pOpts').value = state.joueurs.join('\n'); });
+$('pSave').addEventListener('click', async () => {
+  const payload = pin ? { action:'pari_save', pin, id: editId, titre: $('pTitre').value, options: $('pOpts').value.split('\n') }
+                      : { action:'pari_proposer', joueur: me, titre: $('pTitre').value, options: $('pOpts').value.split('\n') };
+  if (await send(payload, pin ? 'Pari enregistré' : 'Pari publié', $('pSave'))) closeSheets();
+});
+$('pDel').addEventListener('click', () => delPari(editId));
+async function delPari(id){
+  if (!confirm('Supprimer ce pari ? Les mises seront remboursées.')) return;
+  if (await send({ action:'pari_supprimer', pin, id }, 'Pari supprimé')) closeSheets();
+}
+function adminAct(act, id){
+  const p = pari(id); if (!p) return;
+  if (act === 'retirer') { if (!confirm('Retirer ton pari ? Tu récupères ton crédit du jour.')) return; return send({ action:'pari_retirer', joueur: me, id }, 'Pari retiré'); }
+  if (act === 'edit') return openPari(id);
+  if (act === 'del') return delPari(id);
+  if (act === 'ouvert' || act === 'ferme') return send({ action:'pari_statut', pin, id, statut: act }, act === 'ouvert' ? 'Mises rouvertes' : (p.statut === 'regle' ? 'Résultat annulé' : 'Mises fermées'));
+  if (act === 'regler') {
+    editId = id; $('regQ').textContent = p.titre;
+    $('regList').innerHTML = p.options.map((x, i) => '<button data-i="' + i + '">' + esc(x) + '</button>').join('');
+    openSheet('shRegler');
+  }
+}
+$('regList').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const p = pari(editId), g = p.options[+b.dataset.i];
+  if (!confirm('Résultat : « ' + g + ' » ? Les gains seront distribués.')) return;
+  if (await send({ action:'pari_regler', pin, id: editId, gagnant: g }, 'Pari réglé')) closeSheets();
+});
+
+/* ---------- Navigation ---------- */
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#tabs button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  ['vParis','vPC','vMises','vRank'].forEach(v => $(v).hidden = v !== b.dataset.v);
+  window.scrollTo(0, 0);
+});
+$('segParis').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filtre = b.dataset.f;
+  document.querySelectorAll('#segParis button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  renderParis();
+});
+$('scrim').addEventListener('click', closeSheets);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+
+/* ---------- Démarrage ---------- */
+$('demo').hidden = !DEMO;
+function schedule(){
+  clearTimeout(pollT);
+  const d = myDuel(), fast = d && actif(d);
+  pollT = setTimeout(async () => { if (!document.hidden) await refresh(); schedule(); }, fast ? 2000 : 6000);
+}
+refresh().then(() => { if (state && !me) openWho(); schedule(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh().then(schedule); });
+</script>
+</body>
+</html>
