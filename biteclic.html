@@ -195,7 +195,7 @@ button.row{width:100%;text-align:left}
     <div class="slip"><div class="q">Adversaire</div><div class="o" id="lTarget"></div></div>
     <label class="lbl" for="lDefi">Pour combien tu...</label>
     <input type="text" id="lDefi" maxlength="120" placeholder="sautes dans la piscine tout habillé">
-    <label class="tog"><input type="checkbox" id="lRev"><span><b>Reverse</b><small>Si vous ne tombez pas sur le même nombre, une 2e manche se joue avec le max divisé par deux. Si là vous tombez pareil, c'est toi qui fais ton propre défi.</small></span></label>
+    <p class="note">C'est ton adversaire qui choisira son max et s'il active le reverse.</p>
     <button class="btn btn-p" id="lSend">Envoyer le défi</button>
   </div>
 </section>
@@ -318,8 +318,9 @@ function maskDuel_(d) {
 }
 function statsPC(db) {
   var s = {};
-  db.joueurs.forEach(function (j) { s[j] = { inflige: 0, subi: 0, reverse: 0, refuse: 0, joues: 0 }; });
+  db.joueurs.forEach(function (j) { s[j] = { inflige: 0, subi: 0, reverse: 0, refuse: 0, joues: 0, lances: 0 }; });
   (db.defis || []).forEach(function (d) {
+    if (s[d.de]) s[d.de].lances++;
     if (d.statut === 'refuse' && s[d.a]) s[d.a].refuse++;
     if (d.statut !== 'fini') return;
     [d.de, d.a].forEach(function (j) {
@@ -362,7 +363,7 @@ function applyAction(db, a, now) {
       if (d.de === a.joueur || d.a === a.joueur) fail('Tu as déjà un défi en cours.');
       if (d.de === a.cible || d.a === a.cible) fail(a.cible + ' a déjà un défi en cours.');
     });
-    db.defis.push({ id: uid_('d'), de: a.joueur, a: a.cible, defi: txt, reverse: !!a.reverse, max: 0, statut: 'attente', manches: [], perdant: '', ts: now, maj: now });
+    db.defis.push({ id: uid_('d'), de: a.joueur, a: a.cible, defi: txt, reverse: false, max: 0, statut: 'attente', manches: [], perdant: '', ts: now, maj: now });
     return;
   }
   if (a.action === 'defi_repondre') {
@@ -372,7 +373,7 @@ function applyAction(db, a, now) {
     if (!a.accepte) { r0.statut = 'refuse'; r0.maj = now; return; }
     var mx = Math.floor(Number(a.max));
     if (!(mx >= 2 && mx <= 1000)) fail('Le max doit être entre 2 et 1000.');
-    r0.max = mx; r0.manches = [{ max: mx, de: 0, a: 0, revealAt: 0 }]; r0.statut = 'jeu'; r0.maj = now;
+    r0.reverse = !!a.reverse; r0.max = mx; r0.manches = [{ max: mx, de: 0, a: 0, revealAt: 0 }]; r0.statut = 'jeu'; r0.maj = now;
     return;
   }
   if (a.action === 'defi_jouer') {
@@ -630,6 +631,7 @@ function duelHtml(d){
   if (d.statut === 'attente') {
     if (d.a === me) return h + '<label class="lbl" for="dMax">Pour combien ? Donne ton max</label><input type="number" id="dMax" inputmode="numeric" min="2" max="1000" placeholder="300">' +
       '<div class="quick">' + [10, 20, 50, 100, 300].map(v => '<button data-v="' + v + '">' + v + '</button>').join('') + '</div>' +
+      '<label class="tog"><input type="checkbox" id="dRev"><span><b>Reverse</b><small>Si vous ne tombez pas sur le même nombre, une 2e manche se joue avec le max divisé par deux. Si là vous tombez pareil, c\'est ' + esc(d.de) + ' qui fait son propre défi.</small></span></label>' +
       '<button class="btn btn-p" data-d="accept">Accepter le défi</button><button class="btn btn-d" data-d="refuse">Refuser</button>';
     return h + '<p class="wait">En attente de la réponse de <b>' + esc(other) + '</b></p><button class="btn btn-s" data-d="annuler">Annuler le défi</button>';
   }
@@ -683,7 +685,7 @@ $('duelBody').addEventListener('click', async e => {
   if (act === 'accept') {
     const v = Math.floor(Number($('dMax').value));
     if (!(v >= 2 && v <= 1000)) return toast('Choisis un max entre 2 et 1000.', true);
-    return send({ action:'defi_repondre', joueur: me, id: d.id, accepte: true, max: v }, 'Défi accepté', b);
+    return send({ action:'defi_repondre', joueur: me, id: d.id, accepte: true, max: v, reverse: $('dRev').checked }, 'Défi accepté', b);
   }
   if (act === 'refuse') { markSeen(d.id); await send({ action:'defi_repondre', joueur: me, id: d.id, accepte: false }, 'Défi refusé', b); return closeSheets(); }
   if (act === 'annuler') {
@@ -718,27 +720,28 @@ $('pcPlayers').addEventListener('click', e => {
   const d = myDuel();
   if (d && actif(d)) { toast('Tu as déjà un défi en cours.', true); return openSheet('shDuel'); }
   launchTarget = state.joueurs[+b.dataset.i];
-  $('lTarget').textContent = launchTarget; $('lDefi').value = ''; $('lRev').checked = false;
+  $('lTarget').textContent = launchTarget; $('lDefi').value = '';
   openSheet('shLaunch');
 });
 $('lSend').addEventListener('click', async () => {
   const t = $('lDefi').value.trim().replace(/^pour combien( tu)?\s*/i, '').replace(/\s*\?+$/, '');
   if (!t) return toast('Écris le défi.', true);
-  if (await send({ action:'defi_lancer', joueur: me, cible: launchTarget, defi: t, reverse: $('lRev').checked }, 'Défi envoyé', $('lSend'))) { closeSheets(); openSheet('shDuel'); }
+  if (await send({ action:'defi_lancer', joueur: me, cible: launchTarget, defi: t }, 'Défi envoyé', $('lSend'))) { closeSheets(); openSheet('shDuel'); }
 });
 
 function renderRankPC(){
   const S = state.statsPC || {};
-  const rows = state.joueurs.map(j => Object.assign({ j }, S[j] || { inflige:0, subi:0, reverse:0, refuse:0, joues:0 }))
+  const rows = state.joueurs.map(j => Object.assign({ j }, S[j] || { inflige:0, subi:0, reverse:0, refuse:0, joues:0, lances:0 }))
     .sort((a, b) => (b.inflige - b.subi) - (a.inflige - a.subi) || b.inflige - a.inflige || a.subi - b.subi);
   $('rank').innerHTML = rows.map((r, i) => {
     const sc = r.inflige - r.subi;
     const det = r.joues ? r.inflige + ' infligé' + (r.inflige > 1 ? 's' : '') + ' - ' + r.subi + ' subi' + (r.subi > 1 ? 's' : '') +
       (r.reverse ? ' (dont ' + r.reverse + ' en reverse)' : '') : 'Aucun défi joué';
     return '<div class="row' + (i === 0 && r.joues ? ' first' : '') + (r.j === me ? ' self' : '') + '"><div class="rk">' + (i + 1) + '</div>' +
-      '<div class="mid"><div class="t">' + esc(r.j) + '</div><div class="s">' + det + (r.refuse ? ' - ' + r.refuse + ' refusé' + (r.refuse > 1 ? 's' : '') : '') + '</div></div>' +
+      '<div class="mid"><div class="t">' + esc(r.j) + '</div><div class="s">' + det + (r.refuse ? ' - ' + r.refuse + ' refusé' + (r.refuse > 1 ? 's' : '') : '') + '</div>' +
+      '<div class="s">' + (r.lances || 0) + ' lancé' + ((r.lances || 0) > 1 ? 's' : '') + '</div></div>' +
       '<div class="val ' + (sc > 0 ? 'pos' : sc < 0 ? 'neg' : '') + '">' + (sc > 0 ? '+' : '') + sc + '</div></div>';
-  }).join('') + '<p class="note">Score = défis infligés moins défis subis. Un défi infligé, c\'est quand l\'adversaire se le prend (y compris le lanceur piégé par son propre reverse). Les refus sont affichés mais ne comptent pas dans le score.</p>';
+  }).join('') + '<p class="note">Score = défis infligés moins défis subis. Un défi infligé, c\'est quand l\'adversaire se le prend (y compris le lanceur piégé par son propre reverse). Les défis lancés et les refus sont affichés mais ne comptent pas dans le score.</p>';
 }
 $('segRank').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
