@@ -133,6 +133,10 @@ button.row{width:100%;text-align:left}
 .verdict.hit{color:var(--acc)}
 .duelbar{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:7;background:var(--acc);color:var(--acc-ink);
   font-weight:700;font-size:14px;padding:12px 14px;border-radius:14px;text-align:left;max-width:616px;margin:0 auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.bonus{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(200,241,105,.1);border:1px solid var(--acc);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.bonus .t{font-weight:700}.bonus .s{font-size:13px;color:var(--mut)}
+.bonus button{background:var(--acc);color:var(--acc-ink);font-weight:700;border-radius:12px;padding:10px 14px;white-space:nowrap}
+.bonus.done{border-color:var(--line);background:var(--surf)}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--txt);color:var(--bg);
   padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -149,6 +153,7 @@ button.row{width:100%;text-align:left}
 
 <main>
   <section id="vParis">
+    <div id="bonusBox"></div>
     <div class="seg" id="segParis">
       <button data-f="cours" aria-pressed="true">En cours</button>
       <button data-f="fini" aria-pressed="false">Terminés</button>
@@ -288,6 +293,7 @@ function calcSoldes(db) {
   var s = {};
   db.joueurs.forEach(function (j) { s[j] = db.config.depart; });
   db.mises.forEach(function (m) { if (m.joueur in s) s[m.joueur] -= m.montant; });
+  (db.bonus || []).forEach(function (b) { if (b.joueur in s) s[b.joueur] += b.montant; });
   db.paris.forEach(function (p) {
     if (p.statut !== 'regle') return;
     var g = gainsPari(p, db.mises);
@@ -296,6 +302,7 @@ function calcSoldes(db) {
   return s;
 }
 /* --- Pour combien ? --- */
+var BONUS_JOUR = 50;
 var DUEL_REVEAL = 5000, DUEL_TTL_ATTENTE = 10 * 60000, DUEL_TTL_JEU = 20 * 60000;
 function duelActif_(d) { return d.statut === 'attente' || d.statut === 'jeu'; }
 function advanceDuel(d, now) {
@@ -337,7 +344,8 @@ function publicState(db, now) {
   now = now || Date.now(); db.defis = db.defis || [];
   db.defis.forEach(function (d) { advanceDuel(d, now); });
   var defis = db.defis.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 40).map(maskDuel_);
-  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now };
+  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now,
+    bonusMontant: BONUS_JOUR, bonusPris: (db.bonus || []).filter(function (b) { return b.jour === jourSBH_(now); }).map(function (b) { return b.joueur; }) };
 }
 function applyAction(db, a, now) {
   now = now || Date.now(); db.defis = db.defis || [];
@@ -413,6 +421,14 @@ function applyAction(db, a, now) {
     if (pr.auteur !== a.joueur) fail('Ce pari n\'est pas à toi.');
     if (db.mises.some(function (m) { return m.pari === pr.id; })) fail('Il y a déjà des mises, seul l\'admin peut le supprimer.');
     db.paris = db.paris.filter(function (x) { return x.id !== pr.id; });
+    return;
+  }
+  if (a.action === 'bonus') {
+    if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
+    db.bonus = db.bonus || [];
+    var jb = jourSBH_(now);
+    if (db.bonus.some(function (b) { return b.joueur === a.joueur && b.jour === jb; })) fail('Bonus déjà récupéré aujourd\'hui. Reviens demain.');
+    db.bonus.push({ joueur: a.joueur, jour: jb, montant: BONUS_JOUR, ts: now });
     return;
   }
   if (a.action === 'miser') {
@@ -546,7 +562,7 @@ function render(){
   $('btnNew').disabled = !pin && !cr;
   $('creditNote').textContent = pin || !me ? '' : (cr ? '1 crédit disponible aujourd\'hui pour proposer un pari.' : 'Crédit du jour utilisé. Prochain crédit demain.');
   $('btnAdmin').textContent = pin ? 'Réglages admin' : 'Administration';
-  renderParis(); renderMises(); renderRank(); renderPC(); syncDuel();
+  renderBonus(); renderParis(); renderMises(); renderRank(); renderPC(); syncDuel();
 }
 function renderParis(){
   const ps = state.paris.filter(p => filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle').slice().reverse();
@@ -748,6 +764,18 @@ $('segRank').addEventListener('click', e => {
   rankMode = b.dataset.r;
   document.querySelectorAll('#segRank button').forEach(x => x.setAttribute('aria-pressed', x === b));
   renderRank();
+});
+
+function renderBonus(){
+  if (!me) { $('bonusBox').innerHTML = ''; return; }
+  const m = state.bonusMontant || 50, pris = (state.bonusPris || []).indexOf(me) >= 0;
+  $('bonusBox').innerHTML = pris
+    ? '<div class="bonus done"><div><div class="t">Bonus du jour récupéré</div><div class="s">+' + m + ' jetons. Prochain bonus demain.</div></div></div>'
+    : '<div class="bonus"><div><div class="t">Bonus du jour</div><div class="s">' + m + ' jetons offerts, une fois par jour.</div></div><button id="btnBonus">Récupérer +' + m + '</button></div>';
+}
+$('bonusBox').addEventListener('click', e => {
+  const b = e.target.closest('#btnBonus'); if (!b) return;
+  send({ action:'bonus', joueur: me }, '+' + (state.bonusMontant || 50) + ' jetons', b);
 });
 
 /* ---------- Identité ---------- */
