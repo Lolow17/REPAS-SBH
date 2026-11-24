@@ -48,6 +48,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--lagoon-bright)}
 .sync.off i{background:#F07A93}
 .day{font-family:var(--display);font-weight:700;font-size:15px;margin:14px 0 0;color:#fff;opacity:.9;text-transform:capitalize}
+.decl-day{display:inline-block;margin:8px 0 6px;padding:5px 10px;border-radius:999px;background:#fdf1e0;color:#9a5600;font-size:13px;font-weight:600}
+.decl-day[hidden]{display:none}
 .score{display:flex;align-items:flex-end;gap:12px;margin:2px 0 6px}
 .score .num{font-family:var(--display);font-weight:800;font-size:76px;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .score .of{padding-bottom:8px;font-size:15px;color:#C9DCE1;line-height:1.3}
@@ -196,6 +198,7 @@ tr:last-child td{border-bottom:0}
       <span class="sync" id="sync"><i></i><span id="syncTxt">Connexion</span></span>
     </div>
     <p class="day" id="today"></p>
+    <p class="decl-day" id="declDay" hidden></p>
     <div class="score">
       <span class="num" id="done">0</span>
       <span class="of">sur <b id="total">0</b><br>ont déclaré midi et soir</span>
@@ -420,7 +423,18 @@ function mealLine(k, v){
   return '<span class="' + cls + '"><span class="k">' + k + '</span><span class="v">' + esc(label(v)) + '</span></span>';
 }
 
+function majDates(){
+  $('today').textContent = new Intl.DateTimeFormat('fr-FR',{timeZone:TZ,weekday:'long',day:'numeric',month:'long'}).format(new Date());
+  const d = debutSaisies();
+  const el = $('declDay');
+  if (d && d < state.aujourdhui) {
+    el.textContent = 'Déclarations en cours : ' + jourLong(d) + ', à clôturer';
+    el.hidden = false;
+  } else el.hidden = true;
+}
+
 function render(){
+  majDates();
   const p = state.personnel;
   const me = lsGet();
   let done = 0, miss = 0;
@@ -582,7 +596,7 @@ function isoShift(iso, n){
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
-function jourDesSaisies(){
+function debutSaisies(){
   const today = state.aujourdhui;
   const y = +today.slice(0, 4), m = +today.slice(5, 7);
   let best = '';
@@ -593,6 +607,11 @@ function jourDesSaisies(){
     const iso = (mm > m ? y - 1 : y) + '-' + x[2] + '-' + x[1];
     if (iso <= today && (!best || iso < best)) best = iso;
   });
+  return best;
+}
+function jourDesSaisies(){
+  const today = state.aujourdhui;
+  const best = debutSaisies();
   if (best) return best;
   const h = parseInt(new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',hourCycle:'h23'}).format(new Date()), 10);
   return h < 12 ? isoShift(today, -1) : today;
