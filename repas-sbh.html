@@ -286,6 +286,7 @@ tr:last-child td{border-bottom:0}
       <p>Les déclarations sont archivées dans le Google Sheet, puis tout le monde repart de zéro.</p>
       <label class="lbl" for="jour">Journée concernée</label>
       <input type="date" id="jour">
+      <p id="jourInfo" style="margin:-4px 0 12px;font-size:13px"></p>
       <button class="btn btn-danger" id="btnReset">Clôturer et remettre à zéro</button>
     </div>
 
@@ -568,9 +569,42 @@ $('openAdmin').addEventListener('click', () => {
   if (!state) return;
   $('txtPers').value = state.personnel.join('\n');
   $('txtResto').value = state.restaurants.join('\n');
-  if (!$('jour').value) $('jour').value = state.aujourdhui;
+  $('jour').value = jourDesSaisies();
+  majJourInfo();
   showSheet('sheetAdmin');
 });
+
+/* Journée à clôturer : celle des déclarations, pas celle du jour où on clôture.
+   On prend la date de la plus ancienne saisie en cours ; sans saisie,
+   avant midi (heure de Saint-Barth) on propose la veille. */
+function isoShift(iso, n){
+  const d = new Date(iso + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function jourDesSaisies(){
+  const today = state.aujourdhui;
+  const y = +today.slice(0, 4), m = +today.slice(5, 7);
+  let best = '';
+  Object.keys(state.saisies).forEach(n => {
+    const x = /^(\d{2})\/(\d{2})/.exec(state.saisies[n].maj || '');
+    if (!x) return;
+    const mm = +x[2];
+    const iso = (mm > m ? y - 1 : y) + '-' + x[2] + '-' + x[1];
+    if (iso <= today && (!best || iso < best)) best = iso;
+  });
+  if (best) return best;
+  const h = parseInt(new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',hourCycle:'h23'}).format(new Date()), 10);
+  return h < 12 ? isoShift(today, -1) : today;
+}
+function jourLong(iso){
+  return new Intl.DateTimeFormat('fr-FR',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(iso + 'T12:00:00Z'));
+}
+function majJourInfo(){
+  const j = $('jour').value;
+  $('jourInfo').textContent = j ? 'Les repas seront enregistrés au ' + jourLong(j) + '.' : '';
+}
+$('jour').addEventListener('change', majJourInfo);
 
 $('btnReset').addEventListener('click', () => run($('btnReset'), async () => {
   const jour = $('jour').value;
@@ -578,10 +612,10 @@ $('btnReset').addEventListener('click', () => run($('btnReset'), async () => {
   const inc = state.personnel.filter(n => statusOf(n) !== 'ok');
   const d = jour.split('-').reverse().join('/');
   const warn = inc.length ? inc.length + ' personne' + (inc.length > 1 ? 's n\'ont' : ' n\'a') + ' pas fini de remplir.' : '';
-  if (!(await ask('Clôturer le ' + d + ' ?', 'Les déclarations seront archivées puis remises à zéro pour tout le monde.', { warn, ok:'Clôturer', danger:true }))) return;
+  if (!(await ask('Clôturer le ' + jourLong(jour) + ' ?', 'Les déclarations seront archivées au ' + d + ', puis remises à zéro pour tout le monde.', { warn, ok:'Clôturer', danger:true }))) return;
   try {
     state = await api('POST', { action:'reset', jour });
-    $('jour').value = state.aujourdhui;
+    $('jour').value = '';
     render(); hideSheet();
     toast('Journée du ' + d + ' clôturée');
   } catch(e) { toast('Échec : ' + e.message, true); }
