@@ -224,14 +224,14 @@ button.row{width:100%;text-align:left}
 
 <section class="sheet" id="shWho">
   <div class="sheet-h"><h3>Qui es-tu ?</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
-  <div class="sheet-b"><div class="who" id="whoList"></div><p class="note">Le téléphone retient ton nom. Chacun démarre avec le même nombre de jetons.</p></div>
+  <div class="sheet-b"><div class="who" id="whoList"></div><p class="note">Le téléphone retient ton nom. Chacun démarre avec le même nombre de skegs.</p></div>
 </section>
 
 <section class="sheet" id="shBet">
   <div class="sheet-h"><h3>Ta mise</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
   <div class="sheet-b">
     <div class="slip"><div class="q" id="betQ"></div><div class="o" id="betO"></div></div>
-    <label class="lbl" for="betAmt">Jetons misés</label>
+    <label class="lbl" for="betAmt">Skegs misés</label>
     <input type="number" id="betAmt" inputmode="numeric" min="1" step="1" placeholder="0">
     <div class="quick" id="quick">
       <button data-add="50">+50</button><button data-add="100">+100</button><button data-add="250">+250</button><button data-add="all">Tapis</button>
@@ -268,7 +268,7 @@ button.row{width:100%;text-align:left}
     <p class="note" style="margin-top:0">Mode admin actif : les boutons Modifier, Fermer et Régler apparaissent sur chaque pari. En admin, tu crées des paris sans limite de crédit.</p>
     <label class="lbl" for="aJoueurs">Joueurs (un par ligne)</label>
     <textarea id="aJoueurs" spellcheck="false"></textarea>
-    <label class="lbl" for="aDepart">Jetons de départ</label>
+    <label class="lbl" for="aDepart">Skegs de départ</label>
     <input type="number" id="aDepart" inputmode="numeric" min="1">
     <label class="lbl" for="aPin">Nouveau code admin (laisser vide pour garder l'actuel)</label>
     <input type="text" id="aPin" autocomplete="off">
@@ -449,7 +449,7 @@ function applyAction(db, a, now) {
     if (p.statut !== 'ouvert') fail('Les mises sont fermées sur ce pari.');
     if (p.options.indexOf(a.option) < 0) fail('Option inconnue.');
     if (!(montant >= 1)) fail('Mise invalide.');
-    if (montant > calcSoldes(db)[a.joueur]) fail('Pas assez de jetons.');
+    if (montant > calcSoldes(db)[a.joueur]) fail('Pas assez de skegs.');
     db.mises.push({ id: uid_('m'), pari: p.id, joueur: a.joueur, option: a.option, montant: montant, ts: Date.now() });
     return;
   }
@@ -492,7 +492,7 @@ function applyAction(db, a, now) {
   if (a.action === 'config') {
     var joueurs = cleanList_(a.joueurs), depart = Math.floor(Number(a.depart));
     if (!joueurs.length) fail('La liste des joueurs est vide.');
-    if (!(depart >= 1)) fail('Nombre de jetons invalide.');
+    if (!(depart >= 1)) fail('Nombre de skegs invalide.');
     db.joueurs = joueurs; db.config.depart = depart;
     if (a.newPin) db.config.pin = String(a.newPin).trim();
     return;
@@ -642,7 +642,7 @@ function renderRank(){
   const rows = state.joueurs.map(j => ({ j, s: state.soldes[j], e: enJeu[j] || 0 })).sort((a, b) => (b.s + b.e) - (a.s + a.e));
   $('rank').innerHTML = rows.map((r, i) => '<div class="row' + (i === 0 ? ' first' : '') + (r.j === me ? ' self' : '') + '"><div class="rk">' + (i + 1) + '</div>' +
     '<div class="mid"><div class="t">' + esc(r.j) + '</div><div class="s">' + (r.e ? fmt(r.e) + ' en jeu' : 'Rien en jeu') + '</div></div>' +
-    '<div class="val">' + fmt(r.s) + '</div></div>').join('') + '<p class="note">Classement sur les jetons disponibles plus les jetons en jeu.</p>';
+    '<div class="val">' + fmt(r.s) + '</div></div>').join('') + '<p class="note">Classement sur les skegs disponibles plus les skegs en jeu.</p>';
 }
 
 /* ---------- Pour combien ? ---------- */
@@ -799,12 +799,12 @@ function renderBonus(){
   if (!me) { $('bonusBox').innerHTML = ''; return; }
   const m = state.bonusMontant || 50, pris = (state.bonusPris || []).indexOf(me) >= 0;
   $('bonusBox').innerHTML = pris
-    ? '<div class="bonus done"><div><div class="t">Bonus du jour récupéré</div><div class="s">+' + m + ' jetons. Prochain bonus demain.</div></div></div>'
-    : '<div class="bonus"><div><div class="t">Bonus du jour</div><div class="s">' + m + ' jetons offerts, une fois par jour.</div></div><button id="btnBonus">Récupérer +' + m + '</button></div>';
+    ? '<div class="bonus done"><div><div class="t">Ration du jour récupérée</div><div class="s">+' + m + ' skegs. Prochaine ration demain.</div></div></div>'
+    : '<div class="bonus"><div><div class="t">Ration de skegs du jour</div><div class="s">' + m + ' skegs offerts, une fois par jour.</div></div><button id="btnBonus">Récupérer +' + m + '</button></div>';
 }
 $('bonusBox').addEventListener('click', e => {
   const b = e.target.closest('#btnBonus'); if (!b) return;
-  send({ action:'bonus', joueur: me }, '+' + (state.bonusMontant || 50) + ' jetons', b);
+  send({ action:'bonus', joueur: me }, '+' + (state.bonusMontant || 50) + ' skegs', b);
 });
 
 /* ---------- Identité ---------- */
@@ -843,7 +843,7 @@ $('quick').addEventListener('click', e => {
 $('betOk').addEventListener('click', async () => {
   const s = Math.floor(Number($('betAmt').value)) || 0;
   if (s < 1) return toast('Indique une mise.', true);
-  if (s > (state.soldes[me] || 0)) return toast('Pas assez de jetons.', true);
+  if (s > (state.soldes[me] || 0)) return toast('Pas assez de skegs. Attends ta ration de demain.', true);
   if (await send({ action:'miser', joueur: me, pari: bet.id, option: bet.opt, montant: s }, 'Mise enregistrée', $('betOk'))) closeSheets();
 });
 
