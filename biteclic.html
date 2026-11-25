@@ -149,6 +149,10 @@ button.row{width:100%;text-align:left}
 .bl:last-child{border-bottom:0}
 .bl b{white-space:nowrap;font-family:var(--disp)}
 .bl.me{color:var(--acc)}
+.cz{display:flex;flex-wrap:wrap;gap:6px}
+.cz button{font-size:13px;font-weight:600;padding:8px 11px;border-radius:999px;background:var(--surf2);border:1px solid var(--line)}
+.cz button[aria-pressed=true]{background:rgba(255,122,89,.15);border-color:var(--bad);color:var(--bad)}
+.concerne{font-size:12px;color:var(--bad);margin:-6px 0 10px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--txt);color:var(--bg);
   padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -250,6 +254,8 @@ button.row{width:100%;text-align:left}
     <label class="lbl" for="pOpts">Options (une par ligne)</label>
     <textarea id="pOpts" spellcheck="false"></textarea>
     <button class="btn btn-s" id="pFill">Mettre les joueurs en options</button>
+    <label class="lbl">Joueurs concernés (ne pourront pas miser)</label>
+    <div class="cz" id="pCz"></div>
     <p class="note" id="pNote"></p>
     <button class="btn btn-p" id="pSave">Enregistrer</button>
     <button class="btn btn-d" id="pDel" hidden>Supprimer ce pari (mises remboursées)</button>
@@ -289,6 +295,7 @@ function cleanList_(a) {
   (a || []).forEach(function (x) { x = String(x == null ? '' : x).trim(); if (x && out.indexOf(x) < 0) out.push(x); });
   return out;
 }
+function concernes_(db, list) { return cleanList_(list).filter(function (j) { return db.joueurs.indexOf(j) >= 0; }); }
 function jourSBH_(now) { return new Date(now - 4 * 3600000).toISOString().slice(0, 10); }
 function uid_(p) { return p + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36); }
 function gainsPari(p, mises) {
@@ -425,7 +432,7 @@ function applyAction(db, a, now) {
     if (op.length > 30) fail('30 options maximum.');
     var jr = jourSBH_(now);
     if (db.paris.some(function (x) { return x.auteur === a.joueur && x.jour === jr; })) fail('Tu as déjà utilisé ton crédit du jour. Reviens demain.');
-    db.paris.push({ id: uid_('p'), titre: tp, options: op, statut: 'ouvert', gagnant: '', auteur: a.joueur, jour: jr });
+    db.paris.push({ id: uid_('p'), titre: tp, options: op, statut: 'ouvert', gagnant: '', auteur: a.joueur, jour: jr, concernes: concernes_(db, a.concernes) });
     return;
   }
   if (a.action === 'pari_retirer') {
@@ -447,6 +454,7 @@ function applyAction(db, a, now) {
     var p = findPari(a.pari), montant = Math.floor(Number(a.montant));
     if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
     if (p.statut !== 'ouvert') fail('Les mises sont fermées sur ce pari.');
+    if ((p.concernes || []).indexOf(a.joueur) >= 0) fail('Tu es concerné par ce pari, tu ne peux pas miser dessus.');
     if (p.options.indexOf(a.option) < 0) fail('Option inconnue.');
     if (!(montant >= 1)) fail('Mise invalide.');
     if (montant > calcSoldes(db)[a.joueur]) fail('Pas assez de skegs.');
@@ -466,8 +474,12 @@ function applyAction(db, a, now) {
         if (m.pari === e.id && options.indexOf(m.option) < 0) fail('Impossible de retirer « ' + m.option + ' » : il y a déjà des mises dessus.');
       });
       e.titre = titre; e.options = options;
+      if (a.concernes) {
+        e.concernes = concernes_(db, a.concernes);
+        db.mises = db.mises.filter(function (m) { return !(m.pari === e.id && e.concernes.indexOf(m.joueur) >= 0); });
+      }
     } else {
-      db.paris.push({ id: uid_('p'), titre: titre, options: options, statut: 'ouvert', gagnant: '', auteur: '', jour: jourSBH_(now) });
+      db.paris.push({ id: uid_('p'), titre: titre, options: options, statut: 'ouvert', gagnant: '', auteur: '', jour: jourSBH_(now), concernes: concernes_(db, a.concernes) });
     }
     return;
   }
@@ -511,6 +523,7 @@ const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return
 
 let state = null, me = store.get(LS_ME) || '', filtre = 'cours', bet = null, editId = null, busy = false;
 let rankMode = 'paris';
+let czSel = new Set();
 let offset = 0, lastKey = '', launchTarget = '', pollT = null;
 let pin = ''; try { pin = sessionStorage.getItem(SS_PIN) || ''; } catch(e){}
 
@@ -597,6 +610,7 @@ function renderParis(){
       '<button class="chip danger" data-act="del" data-id="' + esc(p.id) + '">Supprimer</button></div>';
     return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span><span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
       '<h3>' + esc(p.titre) + '</h3>' + (p.auteur ? '<p class="note" style="margin:-6px 0 10px">Proposé par ' + esc(p.auteur) + '</p>' : '') +
+      ((p.concernes || []).length ? '<p class="concerne">Ne peuvent pas miser : ' + p.concernes.map(esc).join(', ') + '</p>' : '') +
       '<div class="odds">' + odds + '</div>' + betsHtml(p) + adm +
       (!pin && p.auteur && p.auteur === me && !t ? '<div class="adm-row"><button class="chip danger" data-act="retirer" data-id="' + esc(p.id) + '">Retirer mon pari</button></div>' : '') + '</article>';
   }).join('');
@@ -829,6 +843,7 @@ $('list').addEventListener('click', e => {
   const b = e.target.closest('.odd'); if (!b || b.disabled) return;
   if (!me) return openWho();
   const p = pari(b.dataset.id); if (!p) return;
+  if ((p.concernes || []).indexOf(me) >= 0) return toast('Tu es concerné par ce pari, tu ne peux pas miser dessus.', true);
   bet = { id: p.id, opt: p.options[+b.dataset.i] };
   $('betQ').textContent = p.titre; $('betO').textContent = bet.opt; $('betAmt').value = ''; updEst();
   openSheet('shBet');
@@ -875,14 +890,30 @@ function openPari(id){
   $('pariT').textContent = p ? 'Modifier le pari' : 'Nouveau pari';
   $('pTitre').value = p ? p.titre : ''; $('pOpts').value = p ? p.options.join('\n') : '';
   $('pDel').hidden = !p;
+  czSel = new Set(p ? (p.concernes || []) : []);
+  renderCz();
   $('pNote').textContent = pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.';
   openSheet('shPari');
 }
+function renderCz(){
+  $('pCz').innerHTML = state.joueurs.map((j, i) => '<button type="button" data-i="' + i + '" aria-pressed="' + czSel.has(j) + '">' + esc(j) + '</button>').join('');
+}
+$('pCz').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const j = state.joueurs[+b.dataset.i];
+  czSel.has(j) ? czSel.delete(j) : czSel.add(j);
+  b.setAttribute('aria-pressed', czSel.has(j));
+});
 $('btnNew').addEventListener('click', () => { if (!me) return openWho(); openPari(); });
 $('pFill').addEventListener('click', () => { $('pOpts').value = state.joueurs.join('\n'); });
 $('pSave').addEventListener('click', async () => {
-  const payload = pin ? { action:'pari_save', pin, id: editId, titre: $('pTitre').value, options: $('pOpts').value.split('\n') }
-                      : { action:'pari_proposer', joueur: me, titre: $('pTitre').value, options: $('pOpts').value.split('\n') };
+  const cz = Array.from(czSel);
+  if (editId) {
+    const p0 = pari(editId), lost = p0 ? state.mises.filter(m => m.pari === editId && czSel.has(m.joueur)) : [];
+    if (lost.length && !confirm(lost.length + ' mise(s) de joueurs concernés seront annulées et remboursées. Continuer ?')) return;
+  }
+  const payload = pin ? { action:'pari_save', pin, id: editId, titre: $('pTitre').value, options: $('pOpts').value.split('\n'), concernes: cz }
+                      : { action:'pari_proposer', joueur: me, titre: $('pTitre').value, options: $('pOpts').value.split('\n'), concernes: cz };
   if (await send(payload, pin ? 'Pari enregistré' : 'Pari publié', $('pSave'))) closeSheets();
 });
 $('pDel').addEventListener('click', () => delPari(editId));
