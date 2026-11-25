@@ -137,6 +137,18 @@ button.row{width:100%;text-align:left}
 .bonus .t{font-weight:700}.bonus .s{font-size:13px;color:var(--mut)}
 .bonus button{background:var(--acc);color:var(--acc-ink);font-weight:700;border-radius:12px;padding:10px 14px;white-space:nowrap}
 .bonus.done{border-color:var(--line);background:var(--surf)}
+.bets{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.bets summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--mut);padding:6px 0;list-style:none}
+.bets summary::-webkit-details-marker{display:none}
+.bets summary::after{content:' +';color:var(--acc)}
+.bets[open] summary::after{content:' -'}
+.bg{margin-top:8px}
+.bg h4{margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--acc);display:flex;justify-content:space-between;gap:8px}
+.bg h4 span{color:var(--mut)}
+.bl{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:4px 0;border-bottom:1px solid var(--line)}
+.bl:last-child{border-bottom:0}
+.bl b{white-space:nowrap;font-family:var(--disp)}
+.bl.me{color:var(--acc)}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--txt);color:var(--bg);
   padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -585,10 +597,27 @@ function renderParis(){
       '<button class="chip danger" data-act="del" data-id="' + esc(p.id) + '">Supprimer</button></div>';
     return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span><span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
       '<h3>' + esc(p.titre) + '</h3>' + (p.auteur ? '<p class="note" style="margin:-6px 0 10px">Proposé par ' + esc(p.auteur) + '</p>' : '') +
-      '<div class="odds">' + odds + '</div>' + adm +
+      '<div class="odds">' + odds + '</div>' + betsHtml(p) + adm +
       (!pin && p.auteur && p.auteur === me && !t ? '<div class="adm-row"><button class="chip danger" data-act="retirer" data-id="' + esc(p.id) + '">Retirer mon pari</button></div>' : '') + '</article>';
   }).join('');
 }
+function betsHtml(p){
+  const ms = state.mises.filter(m => m.pari === p.id);
+  if (!ms.length) return '<div class="bets"><p class="note" style="margin:4px 0 0">Personne n\'a encore misé.</p></div>';
+  const joueurs = new Set(ms.map(m => m.joueur)).size;
+  const groups = p.options.map(o => {
+    const agg = {};
+    ms.forEach(m => { if (m.option === o) agg[m.joueur] = (agg[m.joueur] || 0) + m.montant; });
+    const rows = Object.keys(agg).sort((a, b) => agg[b] - agg[a]);
+    if (!rows.length) return '';
+    const tot = rows.reduce((s, j) => s + agg[j], 0);
+    return '<div class="bg"><h4>' + esc(o) + (p.statut === 'regle' && o === p.gagnant ? ' (gagnant)' : '') + '<span>' + fmt(tot) + '</span></h4>' +
+      rows.map(j => '<div class="bl' + (j === me ? ' me' : '') + '"><span>' + esc(j) + '</span><b>' + fmt(agg[j]) + '</b></div>').join('') + '</div>';
+  }).join('');
+  return '<details class="bets" data-id="' + esc(p.id) + '"' + (openBets.has(p.id) ? ' open' : '') + '><summary>Voir qui a misé (' + joueurs + ' joueur' + (joueurs > 1 ? 's' : '') + ')</summary>' + groups + '</details>';
+}
+const openBets = new Set();
+document.addEventListener('toggle', e => { const d = e.target; if (d.classList && d.classList.contains('bets') && d.dataset.id) { d.open ? openBets.add(d.dataset.id) : openBets.delete(d.dataset.id); } }, true);
 function renderMises(){
   if (!me) { $('mises').innerHTML = '<p class="empty">Choisis ton nom en haut à droite pour voir tes mises.</p>'; return; }
   const ms = state.mises.filter(m => m.joueur === me).slice().reverse();
