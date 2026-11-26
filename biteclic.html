@@ -155,6 +155,19 @@ button.row{width:100%;text-align:left}
 .cz button{font-size:13px;font-weight:600;padding:8px 11px;border-radius:999px;background:var(--surf2);border:1px solid var(--line)}
 .cz button[aria-pressed=true]{background:rgba(255,122,89,.15);border-color:var(--bad);color:var(--bad)}
 .concerne{font-size:12px;color:var(--bad);margin:-6px 0 10px}
+.board{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;background:#1a3a8f;padding:7px;border-radius:14px;margin-top:14px;touch-action:manipulation}
+.board .cell{aspect-ratio:1;border-radius:50%;background:var(--bg);box-shadow:inset 0 2px 4px rgba(0,0,0,.5);position:relative}
+.board .c1{background:var(--acc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.board .c2{background:var(--bad);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.board .last::after{content:'';position:absolute;inset:32%;border-radius:50%;background:rgba(0,0,0,.28)}
+.board .win{outline:3px solid #fff;outline-offset:-3px}
+.cols{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:0 7px;margin-top:6px}
+.cols button{height:42px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);font-weight:800;color:var(--acc)}
+.cols button:disabled{opacity:.3}
+.p4who{display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:14px;font-weight:600}
+.p4who span{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.p4who i{width:14px;height:14px;border-radius:50%;flex:none}
+.p4who .on{color:var(--txt)} .p4who .off{color:var(--mut)}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--txt);color:var(--bg);
   padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -183,11 +196,22 @@ button.row{width:100%;text-align:left}
     <button class="link" id="btnAdmin">Administration</button>
   </section>
   <section id="vPC" hidden>
-    <h2>Pour combien ?</h2>
-    <p class="note" style="margin:-6px 0 14px">Choisis un adversaire et lance-lui un défi.</p>
-    <div id="pcPlayers"></div>
-    <h2 style="margin-top:26px">Derniers défis</h2>
-    <div id="pcHist"></div>
+    <div class="seg" id="segJeux">
+      <button data-g="pc" aria-pressed="true">Pour combien ?</button>
+      <button data-g="p4" aria-pressed="false">4 en ligne</button>
+    </div>
+    <div id="wPC">
+      <p class="note" style="margin:0 0 14px">Choisis un adversaire et lance-lui un défi.</p>
+      <div id="pcPlayers"></div>
+      <h2 style="margin-top:26px">Derniers défis</h2>
+      <div id="pcHist"></div>
+    </div>
+    <div id="wP4" hidden>
+      <p class="note" style="margin:0 0 14px">Aligne 4 pions avant ton adversaire. Victoire = <b id="p4GainTxt">+10</b> skegs.</p>
+      <div id="p4Players"></div>
+      <h2 style="margin-top:26px">Dernières parties</h2>
+      <div id="p4Hist"></div>
+    </div>
   </section>
   <section id="vMises" hidden>
     <h2>Mes mises</h2>
@@ -198,6 +222,7 @@ button.row{width:100%;text-align:left}
     <div class="seg" id="segRank">
       <button data-r="paris" aria-pressed="true">Paris</button>
       <button data-r="pc" aria-pressed="false">Pour combien</button>
+      <button data-r="p4" aria-pressed="false">4 en ligne</button>
     </div>
     <div id="rank"></div>
   </section>
@@ -205,12 +230,13 @@ button.row{width:100%;text-align:left}
 
 <nav class="tabs" id="tabs">
   <button data-v="vParis" aria-pressed="true">Paris</button>
-  <button data-v="vPC" aria-pressed="false">Pour combien</button>
+  <button data-v="vPC" aria-pressed="false">Jeux</button>
   <button data-v="vMises" aria-pressed="false">Mes mises</button>
   <button data-v="vRank" aria-pressed="false">Classement</button>
 </nav>
 
 <button class="duelbar" id="duelBar" hidden></button>
+<button class="duelbar" id="p4Bar" hidden></button>
 <div class="scrim" id="scrim"></div>
 
 <section class="sheet" id="shLaunch">
@@ -222,6 +248,11 @@ button.row{width:100%;text-align:left}
     <p class="note">C'est ton adversaire qui choisira son max et s'il active le reverse.</p>
     <button class="btn btn-p" id="lSend">Envoyer le défi</button>
   </div>
+</section>
+
+<section class="sheet" id="shP4">
+  <div class="sheet-h"><h3>4 en ligne</h3><button class="x" data-close aria-label="Fermer">&times;</button></div>
+  <div class="sheet-b" id="p4Body"></div>
 </section>
 
 <section class="sheet" id="shDuel">
@@ -346,6 +377,7 @@ function calcSoldes(db) {
   db.joueurs.forEach(function (j) { s[j] = db.config.depart; });
   db.mises.forEach(function (m) { if (m.joueur in s) s[m.joueur] -= m.montant; });
   (db.bonus || []).forEach(function (b) { if (b.joueur in s) s[b.joueur] += b.montant; });
+  (db.p4 || []).forEach(function (g) { if (g.gagnant && g.gain && g.gagnant in s) s[g.gagnant] += g.gain; });
   db.paris.forEach(function (p) {
     if (p.statut !== 'regle') return;
     var g = gainsPari(p, db.mises);
@@ -392,12 +424,47 @@ function statsPC(db) {
   });
   return s;
 }
+/* --- 4 en ligne --- */
+var P4_GAIN = 10, P4_TTL_ATTENTE = 10 * 60000, P4_TTL_COUP = 30 * 60000;
+function p4Actif_(g) { return g.statut === 'attente' || g.statut === 'jeu'; }
+function advanceP4(g, now) {
+  if (g.statut === 'attente' && now - g.maj > P4_TTL_ATTENTE) { g.statut = 'expire'; g.maj += P4_TTL_ATTENTE; }
+  else if (g.statut === 'jeu' && now - g.maj > P4_TTL_COUP) { g.statut = 'expire'; g.maj += P4_TTL_COUP; }
+}
+function p4Ligne_(grille, idx) {
+  var v = grille[idx], r0 = Math.floor(idx / 7), c0 = idx % 7, dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  for (var k = 0; k < 4; k++) {
+    var dr = dirs[k][0], dc = dirs[k][1], cells = [idx];
+    for (var s = -1; s <= 1; s += 2) {
+      var r = r0 + dr * s, c = c0 + dc * s;
+      while (r >= 0 && r < 6 && c >= 0 && c < 7 && grille[r * 7 + c] === v) { cells.push(r * 7 + c); r += dr * s; c += dc * s; }
+    }
+    if (cells.length >= 4) return cells;
+  }
+  return null;
+}
+function statsP4(db) {
+  var s = {};
+  db.joueurs.forEach(function (j) { s[j] = { v: 0, d: 0, n: 0, gain: 0 }; });
+  (db.p4 || []).forEach(function (g) {
+    if (g.statut !== 'fini') return;
+    [g.j1, g.j2].forEach(function (j) {
+      if (!s[j]) return;
+      if (!g.gagnant) s[j].n++;
+      else if (g.gagnant === j) { s[j].v++; s[j].gain += g.gain || 0; }
+      else s[j].d++;
+    });
+  });
+  return s;
+}
 function publicState(db, now) {
   now = now || Date.now(); db.defis = db.defis || []; fixCotes_(db);
   var cotes = {}; db.paris.forEach(function (p) { if (p.statut !== 'regle') cotes[p.id] = cotesPari(p, db.mises); });
   db.defis.forEach(function (d) { advanceDuel(d, now); });
   var defis = db.defis.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 40).map(maskDuel_);
-  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now, cotes: cotes,
+  db.p4 = db.p4 || []; db.p4.forEach(function (g) { advanceP4(g, now); });
+  var p4 = db.p4.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 30);
+  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now, cotes: cotes, p4: p4, statsP4: statsP4(db), p4Gain: P4_GAIN,
     bonusMontant: BONUS_JOUR, bonusPris: (db.bonus || []).filter(function (b) { return b.jour === jourSBH_(now); }).map(function (b) { return b.joueur; }) };
 }
 function applyAction(db, a, now) {
@@ -409,10 +476,62 @@ function applyAction(db, a, now) {
     if (!p) fail('Ce pari n\'existe plus.');
     return p;
   }
+  db.p4 = db.p4 || []; db.p4.forEach(function (g) { advanceP4(g, now); });
+  function findP4(id) {
+    var g = db.p4.filter(function (x) { return x.id === id; })[0];
+    if (!g) fail('Cette partie n\'existe plus.');
+    return g;
+  }
   function findDuel(id) {
     var d = db.defis.filter(function (x) { return x.id === id; })[0];
     if (!d) fail('Ce défi n\'existe plus.');
     return d;
+  }
+  if (a.action === 'p4_lancer') {
+    if (db.joueurs.indexOf(a.joueur) < 0 || db.joueurs.indexOf(a.cible) < 0) fail('Joueur inconnu.');
+    if (a.joueur === a.cible) fail('Tu ne peux pas jouer contre toi-même.');
+    db.p4.forEach(function (g) {
+      if (!p4Actif_(g)) return;
+      if (g.j1 === a.joueur || g.j2 === a.joueur) fail('Tu as déjà une partie en cours.');
+      if (g.j1 === a.cible || g.j2 === a.cible) fail(a.cible + ' a déjà une partie en cours.');
+    });
+    db.p4.push({ id: uid_('g'), j1: a.joueur, j2: a.cible, statut: 'attente', grille: [], tour: 0, coups: 0, dernier: -1, gagnant: '', gain: 0, ligne: [], abandon: '', ts: now, maj: now });
+    return;
+  }
+  if (a.action === 'p4_repondre') {
+    var g0 = findP4(a.id);
+    if (g0.statut !== 'attente') fail('Cette partie n\'attend plus de réponse.');
+    if (a.joueur !== g0.j2) fail('Cette invitation ne t\'est pas adressée.');
+    if (!a.accepte) { g0.statut = 'refuse'; g0.maj = now; return; }
+    var cases = []; for (var i = 0; i < 42; i++) cases.push(0);
+    g0.grille = cases; g0.tour = Math.random() < 0.5 ? 1 : 2; g0.statut = 'jeu'; g0.maj = now;
+    return;
+  }
+  if (a.action === 'p4_jouer') {
+    var g1 = findP4(a.id);
+    if (g1.statut !== 'jeu') fail('Cette partie n\'est pas en cours.');
+    var role = a.joueur === g1.j1 ? 1 : (a.joueur === g1.j2 ? 2 : 0);
+    if (!role) fail('Tu ne joues pas cette partie.');
+    if (g1.tour !== role) fail('Ce n\'est pas ton tour.');
+    var col = Math.floor(Number(a.col));
+    if (!(col >= 0 && col <= 6)) fail('Colonne invalide.');
+    var idx = -1;
+    for (var r = 5; r >= 0; r--) { if (!g1.grille[r * 7 + col]) { idx = r * 7 + col; break; } }
+    if (idx < 0) fail('Cette colonne est pleine.');
+    g1.grille[idx] = role; g1.coups++; g1.dernier = idx; g1.maj = now;
+    var ligne = p4Ligne_(g1.grille, idx);
+    if (ligne) { g1.statut = 'fini'; g1.gagnant = a.joueur; g1.gain = P4_GAIN; g1.ligne = ligne; }
+    else if (g1.coups >= 42) { g1.statut = 'fini'; g1.gagnant = ''; }
+    else g1.tour = 3 - role;
+    return;
+  }
+  if (a.action === 'p4_abandon') {
+    var g2 = findP4(a.id);
+    if (a.joueur !== g2.j1 && a.joueur !== g2.j2) fail('Tu ne joues pas cette partie.');
+    if (g2.statut === 'attente') { g2.statut = 'annule'; g2.maj = now; return; }
+    if (g2.statut !== 'jeu') return;
+    g2.statut = 'fini'; g2.abandon = a.joueur; g2.gagnant = a.joueur === g2.j1 ? g2.j2 : g2.j1; g2.gain = P4_GAIN; g2.maj = now;
+    return;
   }
   if (a.action === 'defi_lancer') {
     var txt = String(a.defi || '').trim().slice(0, 120);
@@ -524,6 +643,11 @@ function applyAction(db, a, now) {
     db.defis = db.defis.filter(function (x) { return x.id !== a.id; });
     return;
   }
+  if (a.action === 'p4_supprimer') {
+    findP4(a.id);
+    db.p4 = db.p4.filter(function (x) { return x.id !== a.id; });
+    return;
+  }
   if (a.action === 'defis_vider') {
     db.defis = [];
     return;
@@ -614,7 +738,7 @@ async function refresh(){
 let toastT;
 function toast(m, err){ const t = $('toast'); t.textContent = m; t.className = 'toast show' + (err ? ' err' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', 2600); }
 function openSheet(id){ document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $(id).classList.add('open'); $('scrim').classList.add('open'); }
-function closeSheets(){ const dd = myDuel(); if ($('shDuel').classList.contains('open') && dd && !actif(dd)) markSeen(dd.id); document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $('scrim').classList.remove('open'); }
+function closeSheets(){ const gg = myGame(); if ($('shP4').classList.contains('open') && gg && !p4Actif(gg)) markSeenP4(gg.id); const dd = myDuel(); if ($('shDuel').classList.contains('open') && dd && !actif(dd)) markSeen(dd.id); document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $('scrim').classList.remove('open'); }
 function pools(p){ const o = {}; let t = 0; p.options.forEach(x => o[x] = 0); state.mises.forEach(m => { if (m.pari === p.id) { o[m.option] = (o[m.option] || 0) + m.montant; t += m.montant; } }); return { o, t }; }
 function creditDispo(){ if (!me || !state) return false; const j = jourSBH_(sNow()); return !state.paris.some(p => p.auteur === me && p.jour === j); }
 function coteNow(p, o){ const c = state.cotes && state.cotes[p.id]; return c && c[o] ? c[o] : coteDe(p.options.length, 0, 0); }
@@ -633,7 +757,7 @@ function render(){
   $('btnNew').disabled = !pin && !cr;
   $('creditNote').textContent = pin || !me ? '' : (cr ? '1 crédit disponible aujourd\'hui pour proposer un pari.' : 'Crédit du jour utilisé. Prochain crédit demain.');
   $('btnAdmin').textContent = pin ? 'Réglages admin' : 'Administration';
-  renderBonus(); renderNotif(); renderParis(); renderMises(); renderRank(); renderPC(); syncDuel();
+  renderBonus(); renderNotif(); renderParis(); renderMises(); renderRank(); renderPC(); renderP4(); syncDuel(); syncP4();
 }
 function renderParis(){
   const ps = state.paris.filter(p => filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle').slice().reverse();
@@ -700,6 +824,7 @@ function renderMises(){
 }
 function renderRank(){
   if (rankMode === 'pc') return renderRankPC();
+  if (rankMode === 'p4') return renderRankP4();
   const enJeu = {};
   state.mises.forEach(m => { const p = pari(m.pari); if (p && p.statut !== 'regle') enJeu[m.joueur] = (enJeu[m.joueur] || 0) + m.montant; });
   const rows = state.joueurs.map(j => ({ j, s: state.soldes[j], e: enJeu[j] || 0 })).sort((a, b) => (b.s + b.e) - (a.s + a.e));
@@ -882,6 +1007,128 @@ $('bonusBox').addEventListener('click', e => {
   const b = e.target.closest('#btnBonus'); if (!b) return;
   send({ action:'bonus', joueur: me }, '+' + (state.bonusMontant || 50) + ' skegs', b);
 });
+
+/* ---------- 4 en ligne ---------- */
+const LS_P4SEEN = 'biteclic_p4vus';
+let p4Key = '', p4Busy = false;
+const p4Actif = g => g.statut === 'attente' || g.statut === 'jeu';
+function seenP4(){ try { return JSON.parse(store.get(LS_P4SEEN)) || []; } catch(e){ return []; } }
+function markSeenP4(id){ const s = seenP4(); if (s.indexOf(id) < 0) { s.push(id); store.set(LS_P4SEEN, JSON.stringify(s.slice(-60))); } }
+function myGame(){
+  if (!state || !me || !state.p4) return null;
+  const mine = state.p4.filter(g => g.j1 === me || g.j2 === me);
+  return mine.find(p4Actif) || mine.find(g => seenP4().indexOf(g.id) < 0 && sNow() - g.maj < 15 * 60000) || null;
+}
+function setJeu(k){
+  document.querySelectorAll('#segJeux button').forEach(x => x.setAttribute('aria-pressed', x.dataset.g === k));
+  $('wPC').hidden = k !== 'pc'; $('wP4').hidden = k !== 'p4';
+}
+$('segJeux').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setJeu(b.dataset.g); });
+function p4Html(g){
+  const moi = g.j1 === me ? 1 : 2, autre = moi === 1 ? g.j2 : g.j1;
+  const who = '<div class="p4who"><span class="' + (g.tour === 1 && g.statut === 'jeu' ? 'on' : 'off') + '"><i style="background:var(--acc)"></i>' + esc(g.j1) + '</span>' +
+    '<span class="' + (g.tour === 2 && g.statut === 'jeu' ? 'on' : 'off') + '" style="justify-content:flex-end;text-align:right">' + esc(g.j2) + '<i style="background:var(--bad)"></i></span></div>';
+  const fermer = '<button class="btn btn-s" data-p="close">Fermer</button>';
+  if (g.statut === 'attente') {
+    if (g.j2 === me) return '<div class="dq"><div class="dwho">Invitation</div><div class="dtxt">' + esc(g.j1) + ' te défie au 4 en ligne</div><div class="dtags"><span>Victoire +' + (state.p4Gain || 10) + ' skegs</span></div></div>' +
+      '<button class="btn btn-p" data-p="accept">Accepter</button><button class="btn btn-d" data-p="refuse">Refuser</button>';
+    return '<p class="wait">En attente de la réponse de <b>' + esc(autre) + '</b></p><button class="btn btn-s" data-p="abandon">Annuler l\'invitation</button>';
+  }
+  if (g.statut === 'refuse') return '<p class="wait">' + (g.j2 === me ? 'Tu as refusé la partie.' : esc(g.j2) + ' a refusé la partie.') + '</p>' + fermer;
+  if (g.statut === 'annule') return '<p class="wait">Invitation annulée.</p>' + fermer;
+  if (g.statut === 'expire') return '<p class="wait">Partie expirée (pas de réponse ou plus de coup joué à temps).</p>' + fermer;
+  const win = new Set(g.ligne || []);
+  let board = '<div class="board">';
+  for (let i = 0; i < 42; i++) board += '<div class="cell' + (g.grille[i] ? ' c' + g.grille[i] : '') + (i === g.dernier ? ' last' : '') + (win.has(i) ? ' win' : '') + '"></div>';
+  board += '</div>';
+  let h = who + board;
+  if (g.statut === 'jeu') {
+    const monTour = g.tour === moi;
+    h += '<div class="cols">' + [0,1,2,3,4,5,6].map(c => '<button data-col="' + c + '"' + (!monTour || g.grille[c] ? ' disabled' : '') + ' aria-label="Colonne ' + (c + 1) + '">&darr;</button>').join('') + '</div>';
+    h += '<p class="wait" style="margin-top:14px">' + (monTour ? '<b>À toi de jouer</b><br>Touche une flèche pour lâcher ton pion' : 'Tour de ' + esc(autre) + '...') + '</p>';
+    h += '<button class="link" data-p="abandon">Abandonner</button>';
+    return h;
+  }
+  const v = g.gagnant;
+  h += '<div class="verdict' + (v === me ? ' hit' : '') + '">' + (!v ? 'Match nul' : v === me ? 'Victoire ! +' + g.gain + ' skegs' : esc(v) + ' gagne') + '</div>';
+  if (g.abandon) h += '<p class="wait" style="margin-top:0">' + esc(g.abandon) + ' a abandonné.</p>';
+  return h + fermer;
+}
+function syncP4(){
+  const g = myGame(), k = g ? [g.id, g.statut, g.coups, g.tour, me].join('|') : '';
+  if (k !== p4Key) {
+    p4Key = k;
+    if (g) { $('p4Body').innerHTML = p4Html(g); if (!document.querySelector('.sheet.open')) openSheet('shP4'); }
+    else if ($('shP4').classList.contains('open')) closeSheets();
+  }
+  const open = $('shP4').classList.contains('open');
+  $('p4Bar').hidden = !g || open || !$('duelBar').hidden;
+  if (g && !open) $('p4Bar').textContent = (p4Actif(g) ? (g.statut === 'jeu' && g.tour === (g.j1 === me ? 1 : 2) ? 'À toi de jouer au 4 en ligne' : '4 en ligne en cours avec ' + (g.j1 === me ? g.j2 : g.j1)) : 'Résultat du 4 en ligne') + ' - ouvrir';
+}
+$('p4Bar').addEventListener('click', () => openSheet('shP4'));
+$('p4Body').addEventListener('click', async e => {
+  const g = myGame(); if (!g) return;
+  const c = e.target.closest('[data-col]');
+  if (c) {
+    if (p4Busy || c.disabled) return;
+    p4Busy = true;
+    $('p4Body').querySelectorAll('[data-col]').forEach(x => x.disabled = true);
+    await send({ action:'p4_jouer', joueur: me, id: g.id, col: +c.dataset.col }, null);
+    p4Busy = false; p4Key = ''; syncP4();
+    return;
+  }
+  const b = e.target.closest('[data-p]'); if (!b) return;
+  const act = b.dataset.p;
+  if (act === 'close') return closeSheets();
+  if (act === 'accept') return send({ action:'p4_repondre', joueur: me, id: g.id, accepte: true }, 'Partie lancée', b);
+  if (act === 'refuse') { markSeenP4(g.id); await send({ action:'p4_repondre', joueur: me, id: g.id, accepte: false }, 'Partie refusée', b); return closeSheets(); }
+  if (act === 'abandon') {
+    if (!confirm(g.statut === 'attente' ? 'Annuler l\'invitation ?' : 'Abandonner ? Ton adversaire gagne la partie.')) return;
+    await send({ action:'p4_abandon', joueur: me, id: g.id }, g.statut === 'attente' ? 'Invitation annulée' : 'Partie abandonnée', b);
+  }
+});
+function renderP4(){
+  if (!state) return;
+  $('p4GainTxt').textContent = '+' + (state.p4Gain || 10);
+  if (!me) { $('p4Players').innerHTML = '<p class="empty">Choisis ton nom en haut à droite pour jouer.</p>'; $('p4Hist').innerHTML = ''; return; }
+  const on = state.enLigne || [];
+  const others = state.joueurs.filter(j => j !== me).sort((a, b) => (on.indexOf(b) >= 0) - (on.indexOf(a) >= 0));
+  $('p4Players').innerHTML = others.map(j => {
+    const o = on.indexOf(j) >= 0;
+    return '<button class="row pl4" data-i="' + state.joueurs.indexOf(j) + '"><i class="dot' + (o ? ' on' : '') + '"></i><div class="mid"><div class="t">' + esc(j) + '</div><div class="s">' + (o ? 'En ligne' : 'Hors ligne') + '</div></div><span class="chip">Inviter</span></button>';
+  }).join('');
+  const hs = pin ? (state.p4 || []) : (state.p4 || []).filter(g => g.statut === 'fini' || p4Actif(g)).slice(0, 15);
+  $('p4Hist').innerHTML = hs.length ? hs.map(g => {
+    const res = p4Actif(g) ? 'En cours' : g.statut === 'fini' ? (g.gagnant ? esc(g.gagnant) + ' gagne' : 'Nul') : g.statut === 'refuse' ? 'Refusé' : g.statut === 'annule' ? 'Annulé' : 'Expiré';
+    return '<div class="row"><div class="mid"><div class="t">' + esc(g.j1) + ' vs ' + esc(g.j2) + '</div><div class="s">' + (g.coups ? g.coups + ' coups' : '') + (g.abandon ? ' - abandon de ' + esc(g.abandon) : '') + '</div></div>' +
+      '<div class="val' + (g.gagnant ? ' pos' : '') + '" style="font-size:13px;max-width:45%;text-align:right;white-space:normal">' + res +
+      (pin ? '<br><button class="chip danger" style="margin-top:6px" data-del4="' + esc(g.id) + '">Supprimer</button>' : '') + '</div></div>';
+  }).join('') : '<p class="empty">Aucune partie pour le moment.</p>';
+}
+$('p4Players').addEventListener('click', async e => {
+  const b = e.target.closest('.pl4'); if (!b) return;
+  const g = myGame();
+  if (g && p4Actif(g)) { toast('Tu as déjà une partie en cours.', true); return openSheet('shP4'); }
+  const cible = state.joueurs[+b.dataset.i];
+  if (!confirm('Inviter ' + cible + ' au 4 en ligne ?')) return;
+  if (await send({ action:'p4_lancer', joueur: me, cible }, 'Invitation envoyée')) { p4Key = ''; closeSheets(); syncP4(); openSheet('shP4'); }
+});
+$('p4Hist').addEventListener('click', async e => {
+  const b = e.target.closest('[data-del4]'); if (!b) return;
+  if (!confirm('Supprimer cette partie ? Si elle a été gagnée, les skegs de la victoire sont retirés.')) return;
+  send({ action:'p4_supprimer', pin, id: b.dataset.del4 }, 'Partie supprimée', b);
+});
+function renderRankP4(){
+  const S = state.statsP4 || {};
+  const rows = state.joueurs.map(j => Object.assign({ j }, S[j] || { v:0, d:0, n:0, gain:0 }))
+    .sort((a, b) => b.v - a.v || a.d - b.d);
+  $('rank').innerHTML = rows.map((r, i) => {
+    const t = r.v + r.d + r.n;
+    return '<div class="row' + (i === 0 && r.v ? ' first' : '') + (r.j === me ? ' self' : '') + '"><div class="rk">' + (i + 1) + '</div>' +
+      '<div class="mid"><div class="t">' + esc(r.j) + '</div><div class="s">' + (t ? r.v + ' victoire' + (r.v > 1 ? 's' : '') + ' - ' + r.d + ' défaite' + (r.d > 1 ? 's' : '') + (r.n ? ' - ' + r.n + ' nul' + (r.n > 1 ? 's' : '') : '') : 'Aucune partie jouée') + '</div></div>' +
+      '<div class="val' + (r.gain ? ' pos' : '') + '">' + (r.gain ? '+' + fmt(r.gain) : '0') + '</div></div>';
+  }).join('') + '<p class="note">Classé par victoires. À droite, les skegs gagnés au 4 en ligne.</p>';
+}
 
 /* ---------- Notifications ---------- */
 const VAPID_PUB = 'BN-ZlNnarg-EJEoyJBM74eLg2KxUnCA4g8GLLN1ph6ShvyiyJ74Oxn9d_s0jgzGuQrsoxx7oYS9LKiJQ1n43nBQ';
@@ -1070,11 +1317,11 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 $('demo').hidden = !DEMO;
 function schedule(){
   clearTimeout(pollT);
-  const d = myDuel(), fast = d && actif(d);
+  const d = myDuel(), g = myGame(), fast = (d && actif(d)) || (g && p4Actif(g));
   pollT = setTimeout(async () => { if (!document.hidden) await refresh(); schedule(); }, fast ? 2000 : 6000);
 }
 refresh().then(() => { if (state && !me) openWho(); schedule(); initPush(); });
-if (location.hash === '#pc') { const tb = document.querySelector('#tabs button[data-v="vPC"]'); if (tb) tb.click(); }
+if (location.hash === '#pc' || location.hash === '#p4') { const tb = document.querySelector('#tabs button[data-v="vPC"]'); if (tb) tb.click(); if (location.hash === '#p4') setJeu('p4'); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh().then(schedule); });
 </script>
 </body>
