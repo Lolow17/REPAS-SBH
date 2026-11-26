@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BiteClic">
 <title>BiteClic</title>
+<link rel="manifest" href="biteclic.webmanifest">
+<link rel="apple-touch-icon" href="biteclic-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -170,6 +172,7 @@ button.row{width:100%;text-align:left}
 <main>
   <section id="vParis">
     <div id="bonusBox"></div>
+    <div id="notifBox"></div>
     <div class="seg" id="segParis">
       <button data-f="cours" aria-pressed="true">En cours</button>
       <button data-f="fini" aria-pressed="false">Terminés</button>
@@ -241,7 +244,7 @@ button.row{width:100%;text-align:left}
       <button data-add="50">+50</button><button data-add="100">+100</button><button data-add="250">+250</button><button data-add="all">Tapis</button>
     </div>
     <div class="est"><span>Gain estimé si ça passe</span><b id="betEst">-</b></div>
-    <p class="note">Pari mutuel : la cagnotte est partagée entre les gagnants, la cote bouge donc jusqu'à la fermeture des mises. Une mise validée ne s'annule pas.</p>
+    <p class="note">Ta cote est verrouillée au moment où tu valides : même si elle bouge ensuite pour les autres, tu gardes la tienne. Une mise validée ne s'annule pas.</p>
     <button class="btn btn-p" id="betOk">Valider la mise</button>
   </div>
 </section>
@@ -298,9 +301,39 @@ function cleanList_(a) {
 function concernes_(db, list) { return cleanList_(list).filter(function (j) { return db.joueurs.indexOf(j) >= 0; }); }
 function jourSBH_(now) { return new Date(now - 4 * 3600000).toISOString().slice(0, 10); }
 function uid_(p) { return p + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36); }
+/* Cotes fixes : verrouillées au moment de la mise (style bookmaker) */
+var COTE_BASE = 100, COTE_MARGE = 0.95, COTE_MIN = 1.05, COTE_MAX = 25;
+function coteDe(nOptions, total, surOption) {
+  var c = COTE_MARGE * (total + COTE_BASE * nOptions) / (surOption + COTE_BASE);
+  return Math.round(Math.max(COTE_MIN, Math.min(COTE_MAX, c)) * 100) / 100;
+}
+function cotesPari(p, mises) {
+  var tot = 0, par = {}, out = {};
+  p.options.forEach(function (o) { par[o] = 0; });
+  mises.forEach(function (m) { if (m.pari === p.id) { tot += m.montant; par[m.option] = (par[m.option] || 0) + m.montant; } });
+  p.options.forEach(function (o) { out[o] = coteDe(p.options.length, tot, par[o] || 0); });
+  return out;
+}
+function fixCotes_(db) {
+  db.paris.forEach(function (p) {
+    if (p.statut === 'regle') return;
+    var ms = db.mises.filter(function (m) { return m.pari === p.id; }).sort(function (x, y) { return x.ts - y.ts; });
+    if (!ms.some(function (m) { return !m.cote; })) return;
+    var tot = 0, par = {};
+    ms.forEach(function (m) {
+      if (!m.cote) m.cote = coteDe(p.options.length, tot, par[m.option] || 0);
+      tot += m.montant; par[m.option] = (par[m.option] || 0) + m.montant;
+    });
+  });
+}
 function gainsPari(p, mises) {
   var g = {}, total = 0, win = 0;
   var ms = mises.filter(function (m) { return m.pari === p.id; });
+  if (ms.length && ms.every(function (m) { return m.cote; })) {
+    ms.forEach(function (m) { g[m.joueur] = (g[m.joueur] || 0) + (m.option === p.gagnant ? Math.floor(m.montant * m.cote) : 0); });
+    return g;
+  }
+  /* anciens paris (avant les cotes fixes) : pari mutuel */
   ms.forEach(function (m) { total += m.montant; if (m.option === p.gagnant) win += m.montant; });
   ms.forEach(function (m) {
     var v = win > 0 ? (m.option === p.gagnant ? Math.floor(m.montant * total / win) : 0) : m.montant;
@@ -360,14 +393,15 @@ function statsPC(db) {
   return s;
 }
 function publicState(db, now) {
-  now = now || Date.now(); db.defis = db.defis || [];
+  now = now || Date.now(); db.defis = db.defis || []; fixCotes_(db);
+  var cotes = {}; db.paris.forEach(function (p) { if (p.statut !== 'regle') cotes[p.id] = cotesPari(p, db.mises); });
   db.defis.forEach(function (d) { advanceDuel(d, now); });
   var defis = db.defis.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 40).map(maskDuel_);
-  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now,
+  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now, cotes: cotes,
     bonusMontant: BONUS_JOUR, bonusPris: (db.bonus || []).filter(function (b) { return b.jour === jourSBH_(now); }).map(function (b) { return b.joueur; }) };
 }
 function applyAction(db, a, now) {
-  now = now || Date.now(); db.defis = db.defis || [];
+  now = now || Date.now(); db.defis = db.defis || []; fixCotes_(db);
   db.defis.forEach(function (d) { advanceDuel(d, now); });
   function fail(m) { throw new Error(m); }
   function findPari(id) {
@@ -442,6 +476,7 @@ function applyAction(db, a, now) {
     db.paris = db.paris.filter(function (x) { return x.id !== pr.id; });
     return;
   }
+  if (a.action === 'push_sub' || a.action === 'push_unsub') return;
   if (a.action === 'bonus') {
     if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
     db.bonus = db.bonus || [];
@@ -458,7 +493,8 @@ function applyAction(db, a, now) {
     if (p.options.indexOf(a.option) < 0) fail('Option inconnue.');
     if (!(montant >= 1)) fail('Mise invalide.');
     if (montant > calcSoldes(db)[a.joueur]) fail('Pas assez de skegs.');
-    db.mises.push({ id: uid_('m'), pari: p.id, joueur: a.joueur, option: a.option, montant: montant, ts: Date.now() });
+    var cote = cotesPari(p, db.mises)[a.option];
+    db.mises.push({ id: uid_('m'), pari: p.id, joueur: a.joueur, option: a.option, montant: montant, cote: cote, ts: now });
     return;
   }
   if (String(a.pin || '') !== String(db.config.pin)) fail('Code admin incorrect.');
@@ -572,6 +608,7 @@ function openSheet(id){ document.querySelectorAll('.sheet.open').forEach(s => s.
 function closeSheets(){ const dd = myDuel(); if ($('shDuel').classList.contains('open') && dd && !actif(dd)) markSeen(dd.id); document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $('scrim').classList.remove('open'); }
 function pools(p){ const o = {}; let t = 0; p.options.forEach(x => o[x] = 0); state.mises.forEach(m => { if (m.pari === p.id) { o[m.option] = (o[m.option] || 0) + m.montant; t += m.montant; } }); return { o, t }; }
 function creditDispo(){ if (!me || !state) return false; const j = jourSBH_(sNow()); return !state.paris.some(p => p.auteur === me && p.jour === j); }
+function coteNow(p, o){ const c = state.cotes && state.cotes[p.id]; return c && c[o] ? c[o] : coteDe(p.options.length, 0, 0); }
 function pari(id){ return state.paris.find(p => p.id === id); }
 const LBL = { ouvert:'Ouvert', ferme:'Mises fermées', regle:'Réglé' };
 
@@ -587,7 +624,7 @@ function render(){
   $('btnNew').disabled = !pin && !cr;
   $('creditNote').textContent = pin || !me ? '' : (cr ? '1 crédit disponible aujourd\'hui pour proposer un pari.' : 'Crédit du jour utilisé. Prochain crédit demain.');
   $('btnAdmin').textContent = pin ? 'Réglages admin' : 'Administration';
-  renderBonus(); renderParis(); renderMises(); renderRank(); renderPC(); syncDuel();
+  renderBonus(); renderNotif(); renderParis(); renderMises(); renderRank(); renderPC(); syncDuel();
 }
 function renderParis(){
   const ps = state.paris.filter(p => filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle').slice().reverse();
@@ -599,7 +636,7 @@ function renderParis(){
       const cls = p.statut === 'regle' ? (x === p.gagnant ? ' win' : ' lose') : '';
       return '<button class="odd' + cls + '" data-id="' + esc(p.id) + '" data-i="' + i + '"' + (p.statut !== 'ouvert' ? ' disabled' : '') + '>' +
         '<span class="on">' + esc(x) + (mine[x] ? '<small>Ta mise ' + fmt(mine[x]) + '</small>' : '') + '</span>' +
-        '<span class="oc">' + (o[x] ? 'x' + (t / o[x]).toFixed(2) : '-') + '</span>' +
+        '<span class="oc">' + (p.statut === 'regle' ? '' : 'x' + coteNow(p, x).toFixed(2)) + '</span>' +
         (t ? '<i class="bar" style="width:' + Math.round(100 * o[x] / t) + '%"></i>' : '') + '</button>';
     }).join('');
     const adm = !pin ? '' : '<div class="adm-row">' +
@@ -620,13 +657,11 @@ function betsHtml(p){
   if (!ms.length) return '<div class="bets"><p class="note" style="margin:4px 0 0">Personne n\'a encore misé.</p></div>';
   const joueurs = new Set(ms.map(m => m.joueur)).size;
   const groups = p.options.map(o => {
-    const agg = {};
-    ms.forEach(m => { if (m.option === o) agg[m.joueur] = (agg[m.joueur] || 0) + m.montant; });
-    const rows = Object.keys(agg).sort((a, b) => agg[b] - agg[a]);
+    const rows = ms.filter(m => m.option === o).sort((a, b) => b.montant - a.montant);
     if (!rows.length) return '';
-    const tot = rows.reduce((s, j) => s + agg[j], 0);
+    const tot = rows.reduce((s, m) => s + m.montant, 0);
     return '<div class="bg"><h4>' + esc(o) + (p.statut === 'regle' && o === p.gagnant ? ' (gagnant)' : '') + '<span>' + fmt(tot) + '</span></h4>' +
-      rows.map(j => '<div class="bl' + (j === me ? ' me' : '') + '"><span>' + esc(j) + '</span><b>' + fmt(agg[j]) + '</b></div>').join('') + '</div>';
+      rows.map(m => '<div class="bl' + (m.joueur === me ? ' me' : '') + '"><span>' + esc(m.joueur) + '</span><b>' + fmt(m.montant) + (m.cote ? ' <small style="color:var(--mut);font-weight:500">x' + m.cote.toFixed(2) + '</small>' : '') + '</b></div>').join('') + '</div>';
   }).join('');
   return '<details class="bets" data-id="' + esc(p.id) + '"' + (openBets.has(p.id) ? ' open' : '') + '><summary>Voir qui a misé (' + joueurs + ' joueur' + (joueurs > 1 ? 's' : '') + ')</summary>' + groups + '</details>';
 }
@@ -638,15 +673,20 @@ function renderMises(){
   if (!ms.length) { $('mises').innerHTML = '<p class="empty">Aucune mise pour le moment.</p>'; return; }
   $('mises').innerHTML = ms.map(m => {
     const p = pari(m.pari); if (!p) return '';
-    let val = '-' + fmt(m.montant), cls = '', st = 'En cours';
+    let val = '-' + fmt(m.montant), cls = '', st = m.cote ? 'En cours, ' + fmt(Math.floor(m.montant * m.cote)) + ' si ça passe' : 'En cours';
     if (p.statut === 'ferme') st = 'Mises fermées, en attente du résultat';
     if (p.statut === 'regle') {
-      const { o, t } = pools(p), win = o[p.gagnant] || 0;
-      if (!win) { st = 'Remboursé (personne n\'avait le bon résultat)'; val = '0'; }
-      else if (m.option === p.gagnant) { const g = Math.floor(m.montant * t / win); st = 'Gagné'; val = '+' + fmt(g - m.montant); cls = 'pos'; }
-      else { st = 'Perdu'; cls = 'neg'; }
+      if (m.cote) {
+        if (m.option === p.gagnant) { const g = Math.floor(m.montant * m.cote); st = 'Gagné'; val = '+' + fmt(g - m.montant); cls = 'pos'; }
+        else { st = 'Perdu'; cls = 'neg'; }
+      } else {
+        const { o, t } = pools(p), win = o[p.gagnant] || 0;
+        if (!win) { st = 'Remboursé (personne n\'avait le bon résultat)'; val = '0'; }
+        else if (m.option === p.gagnant) { const g = Math.floor(m.montant * t / win); st = 'Gagné'; val = '+' + fmt(g - m.montant); cls = 'pos'; }
+        else { st = 'Perdu'; cls = 'neg'; }
+      }
     }
-    return '<div class="row"><div class="mid"><div class="t">' + esc(m.option) + '</div><div class="s">' + esc(p.titre) + '</div><div class="s">Mise ' + fmt(m.montant) + ' - ' + st + '</div></div><div class="val ' + cls + '">' + val + '</div></div>';
+    return '<div class="row"><div class="mid"><div class="t">' + esc(m.option) + '</div><div class="s">' + esc(p.titre) + '</div><div class="s">Mise ' + fmt(m.montant) + (m.cote ? ' à x' + m.cote.toFixed(2) : '') + ' - ' + st + '</div></div><div class="val ' + cls + '">' + val + '</div></div>';
   }).join('');
 }
 function renderRank(){
@@ -821,6 +861,50 @@ $('bonusBox').addEventListener('click', e => {
   send({ action:'bonus', joueur: me }, '+' + (state.bonusMontant || 50) + ' skegs', b);
 });
 
+/* ---------- Notifications ---------- */
+const VAPID_PUB = 'BN-ZlNnarg-EJEoyJBM74eLg2KxUnCA4g8GLLN1ph6ShvyiyJ74Oxn9d_s0jgzGuQrsoxx7oYS9LKiJQ1n43nBQ';
+const pushOK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+let swReg = null, pushOn = false;
+function b64u(u){ const p = '='.repeat((4 - u.length % 4) % 4); const s = atob((u + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+async function sendSub(s){ try { await fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'push_sub', joueur: me, sub: s.toJSON() }) }); } catch(e){} }
+async function initPush(){
+  if (!pushOK || DEMO) return renderNotif();
+  try {
+    swReg = await navigator.serviceWorker.register('biteclic-sw.js');
+    const s = await swReg.pushManager.getSubscription();
+    pushOn = !!s && Notification.permission === 'granted';
+    if (s && pushOn && me) sendSub(s);
+  } catch(e){}
+  renderNotif();
+}
+async function enablePush(btn){
+  if (!me) return openWho();
+  btn.disabled = true;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Notifications refusées. Tu peux les autoriser dans les réglages du téléphone.', true); return; }
+    swReg = swReg || await navigator.serviceWorker.register('biteclic-sw.js');
+    await navigator.serviceWorker.ready;
+    const s = (await swReg.pushManager.getSubscription()) || await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB) });
+    await sendSub(s);
+    pushOn = true; renderNotif(); toast('Notifications activées');
+  } catch(e){ toast('Impossible d\'activer les notifications : ' + (e.message || e), true); }
+  finally { btn.disabled = false; }
+}
+function renderNotif(){
+  const box = $('notifBox'); if (!box) return;
+  if (DEMO || !me || pushOn) { box.innerHTML = ''; return; }
+  if (!pushOK) {
+    box.innerHTML = isIOS && !standalone ? '<div class="bonus done"><div><div class="t">Recevoir les notifications</div><div class="s">Sur iPhone : Partager, puis Sur l\'écran d\'accueil. Ouvre ensuite BiteClic depuis l\'icône.</div></div></div>' : '';
+    return;
+  }
+  if (Notification.permission === 'denied') { box.innerHTML = '<p class="note" style="margin:0 0 14px">Notifications bloquées sur ce téléphone. Autorise-les dans les réglages pour recevoir les défis et les nouveaux paris.</p>'; return; }
+  box.innerHTML = '<div class="bonus"><div><div class="t">Notifications</div><div class="s">Sois prévenu des défis Pour combien et des nouveaux paris.</div></div><button id="btnNotif">Activer</button></div>';
+}
+$('notifBox').addEventListener('click', e => { const b = e.target.closest('#btnNotif'); if (b) enablePush(b); });
+
 /* ---------- Identité ---------- */
 function openWho(){
   if (!state) return;
@@ -828,14 +912,14 @@ function openWho(){
   openSheet('shWho');
 }
 $('me').addEventListener('click', openWho);
-$('whoList').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; me = state.joueurs[+b.dataset.i]; store.set(LS_ME, me); closeSheets(); render(); refresh().then(schedule); });
+$('whoList').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; me = state.joueurs[+b.dataset.i]; store.set(LS_ME, me); closeSheets(); render(); refresh().then(schedule); if (pushOn && swReg) swReg.pushManager.getSubscription().then(s => s && sendSub(s)); });
 
 /* ---------- Miser ---------- */
 function updEst(){
   const p = pari(bet.id), s = Math.floor(Number($('betAmt').value)) || 0;
   if (!p || s < 1) { $('betEst').textContent = '-'; return; }
-  const { o, t } = pools(p), g = Math.floor(s * (t + s) / ((o[bet.opt] || 0) + s));
-  $('betEst').textContent = fmt(g) + ' (x' + (g / s).toFixed(2) + ')';
+  const c = coteNow(p, bet.opt);
+  $('betEst').textContent = fmt(Math.floor(s * c)) + ' (cote x' + c.toFixed(2) + ')';
 }
 $('list').addEventListener('click', e => {
   const act = e.target.closest('[data-act]');
@@ -859,7 +943,11 @@ $('betOk').addEventListener('click', async () => {
   const s = Math.floor(Number($('betAmt').value)) || 0;
   if (s < 1) return toast('Indique une mise.', true);
   if (s > (state.soldes[me] || 0)) return toast('Pas assez de skegs. Attends ta ration de demain.', true);
-  if (await send({ action:'miser', joueur: me, pari: bet.id, option: bet.opt, montant: s }, 'Mise enregistrée', $('betOk'))) closeSheets();
+  if (await send({ action:'miser', joueur: me, pari: bet.id, option: bet.opt, montant: s }, null, $('betOk'))) {
+    closeSheets();
+    const mine = state.mises.filter(m => m.joueur === me && m.pari === bet.id).pop();
+    toast(mine && mine.cote ? 'Mise validée, cote verrouillée à x' + mine.cote.toFixed(2) : 'Mise enregistrée');
+  }
 });
 
 /* ---------- Admin ---------- */
@@ -963,7 +1051,8 @@ function schedule(){
   const d = myDuel(), fast = d && actif(d);
   pollT = setTimeout(async () => { if (!document.hidden) await refresh(); schedule(); }, fast ? 2000 : 6000);
 }
-refresh().then(() => { if (state && !me) openWho(); schedule(); });
+refresh().then(() => { if (state && !me) openWho(); schedule(); initPush(); });
+if (location.hash === '#pc') { const tb = document.querySelector('#tabs button[data-v="vPC"]'); if (tb) tb.click(); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh().then(schedule); });
 </script>
 </body>
