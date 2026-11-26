@@ -519,6 +519,15 @@ function applyAction(db, a, now) {
     }
     return;
   }
+  if (a.action === 'defi_supprimer') {
+    findDuel(a.id);
+    db.defis = db.defis.filter(function (x) { return x.id !== a.id; });
+    return;
+  }
+  if (a.action === 'defis_vider') {
+    db.defis = [];
+    return;
+  }
   if (a.action === 'pari_statut') {
     var q = findPari(a.id);
     if (a.statut !== 'ouvert' && a.statut !== 'ferme') fail('Statut invalide.');
@@ -806,14 +815,27 @@ function renderPC(){
     const o = on.indexOf(j) >= 0;
     return '<button class="row pl" data-i="' + state.joueurs.indexOf(j) + '"><i class="dot' + (o ? ' on' : '') + '"></i><div class="mid"><div class="t">' + esc(j) + '</div><div class="s">' + (o ? 'En ligne' : 'Hors ligne') + '</div></div><span class="chip">Défier</span></button>';
   }).join('');
-  const hs = (state.defis || []).filter(d => d.statut === 'fini' || d.statut === 'refuse' || actif(d)).slice(0, 15);
+  const hs = pin ? (state.defis || []) : (state.defis || []).filter(d => d.statut === 'fini' || d.statut === 'refuse' || actif(d)).slice(0, 15);
   $('pcHist').innerHTML = hs.length ? hs.map(d => {
-    const res = actif(d) ? 'En cours' : d.statut === 'refuse' ? 'Refusé' : d.perdant ? esc(d.perdant) + ' le fait' : 'Personne';
+    const res = actif(d) ? 'En cours' : d.statut === 'refuse' ? 'Refusé' : d.statut === 'annule' ? 'Annulé' : d.statut === 'expire' ? 'Expiré' : d.perdant ? esc(d.perdant) + ' le fait' : 'Personne';
     const cls = d.statut === 'fini' && d.perdant ? 'pos' : '';
     return '<div class="row"><div class="mid"><div class="t">' + esc(d.de) + ' &rarr; ' + esc(d.a) + '</div><div class="s">Pour combien tu ' + esc(d.defi) + ' ?' + (d.max ? ' (1 à ' + d.max + ')' : '') + (d.reverse ? ' - reverse' : '') + '</div></div>' +
-      '<div class="val ' + cls + '" style="font-size:13px;max-width:40%;text-align:right;white-space:normal">' + res + '</div></div>';
-  }).join('') : '<p class="empty">Aucun défi pour le moment.</p>';
+      '<div class="val ' + cls + '" style="font-size:13px;max-width:40%;text-align:right;white-space:normal">' + res +
+      (pin ? '<br><button class="chip danger" style="margin-top:6px" data-del="' + esc(d.id) + '">Supprimer</button>' : '') + '</div></div>';
+  }).join('') + (pin ? '<button class="btn btn-d" id="pcVider">Supprimer tous les défis</button><p class="note">Mode admin : supprimer un défi le retire aussi du classement Pour combien.</p>' : '') : '<p class="empty">Aucun défi pour le moment.</p>';
 }
+$('pcHist').addEventListener('click', async e => {
+  const b = e.target.closest('[data-del]');
+  if (b) {
+    const d = (state.defis || []).find(x => x.id === b.dataset.del); if (!d) return;
+    if (!confirm('Supprimer le défi de ' + d.de + ' à ' + d.a + ' ? Il sera retiré du classement.')) return;
+    return send({ action:'defi_supprimer', pin, id: d.id }, 'Défi supprimé', b);
+  }
+  if (e.target.closest('#pcVider')) {
+    if (!confirm('Supprimer TOUS les défis Pour combien ? Le classement Pour combien repart à zéro.')) return;
+    return send({ action:'defis_vider', pin }, 'Tous les défis sont supprimés', e.target.closest('#pcVider'));
+  }
+});
 $('pcPlayers').addEventListener('click', e => {
   const b = e.target.closest('.pl'); if (!b) return;
   const d = myDuel();
