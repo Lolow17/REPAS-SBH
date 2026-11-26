@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Repas SBH">
+<link rel="manifest" href="repas-sbh.webmanifest">
+<link rel="apple-touch-icon" href="repas-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -90,6 +92,11 @@ h2{font-family:var(--display);font-weight:700;font-size:21px;margin:0;letter-spa
 .tile.me::after{content:"Toi";position:absolute;top:11px;right:12px;font-size:11px;font-weight:700;color:var(--ink);background:#fff;border:1.5px solid var(--ink);border-radius:99px;padding:1px 7px}
 .tile.me.st-ok::after{right:40px}
 
+.notif{display:flex;gap:12px;align-items:center;background:var(--surface);border-radius:var(--r-md);padding:14px 16px;margin-top:12px}
+.notif p{margin:0;flex:1;font-size:14px;color:var(--ink-2)}
+.notif strong{display:block;color:var(--ink);font-family:var(--display);font-size:16px}
+.notif button.on{flex:none;background:var(--ink);color:#fff;font-weight:700;font-size:14.5px;padding:10px 16px;border-radius:99px}
+.notif button.on:disabled{opacity:.5}
 .allgood{display:flex;gap:12px;align-items:center;background:var(--surface);border-radius:var(--r-md);padding:16px;margin-top:10px}
 .allgood .ic{flex:none;width:38px;height:38px;border-radius:50%;background:var(--lagoon);color:#fff;display:grid;place-items:center}
 .allgood p{margin:0;font-size:14.5px;color:var(--ink-2)}
@@ -222,6 +229,7 @@ tr:last-child td{border-bottom:0}
     <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
   </div>
   <div id="allgood"></div>
+  <div id="notifBox"></div>
 
   <div class="head-row" style="margin-top:30px">
     <h2>Restaurants du jour</h2>
@@ -532,7 +540,7 @@ function openDecl(nom){
   showSheet('sheetDecl');
 }
 
-$('nom').addEventListener('change', () => { lsSet($('nom').value); loadPick($('nom').value); render(); });
+$('nom').addEventListener('change', () => { lsSet($('nom').value); loadPick($('nom').value); render(); syncSub(); });
 $('fab').addEventListener('click', () => openDecl());
 
 async function run(btn, fn){
@@ -548,7 +556,7 @@ $('btnSave').addEventListener('click', () => run($('btnSave'), async () => {
   $('btnSave').textContent = 'Envoi';
   try {
     state = await api('POST', { action:'save', nom, midi:pick.midi, soir:pick.soir });
-    lsSet(nom);
+    lsSet(nom); syncSub();
     render(); hideSheet();
     setSync(true, 'À jour ' + hhmm());
     toast(pick.midi && pick.soir ? 'Déclaration validée' : 'Enregistré. Pense à compléter le ' + (pick.midi ? 'soir' : 'midi'));
@@ -673,6 +681,61 @@ $('btnConfig').addEventListener('click', () => run($('btnConfig'), async () => {
   } catch(e) { toast('Échec : ' + e.message, true); }
 }));
 
+/* ---------- Rappels 12h30 / 19h30 ---------- */
+const PUSH_API = 'https://ygldrltvnizhjnvvvmwq.supabase.co/functions/v1/repas-rappel';
+const VAPID_PUB = 'BN-ZlNnarg-EJEoyJBM74eLg2KxUnCA4g8GLLN1ph6ShvyiyJ74Oxn9d_s0jgzGuQrsoxx7oYS9LKiJQ1n43nBQ';
+const pushOK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+let swReg = null, pushOn = false, pushNom = '';
+function b64u(u){ const p = '='.repeat((4 - u.length % 4) % 4); const s = atob((u + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+function regSW(){ return navigator.serviceWorker.register('repas-sw.js', { scope: './repas-sbh.html' }); }
+async function sendSub(s){
+  const nom = lsGet();
+  if (!nom || !s) return;
+  try { await fetch(PUSH_API, { method:'POST', body: JSON.stringify({ action:'push_sub', nom, sub: s.toJSON() }) }); pushNom = nom; } catch(e){}
+}
+async function syncSub(){
+  if (!pushOn || !swReg || lsGet() === pushNom) return;
+  const s = await swReg.pushManager.getSubscription();
+  if (s) sendSub(s);
+}
+async function initPush(){
+  if (!pushOK) return renderNotif();
+  try {
+    swReg = await regSW();
+    const s = await swReg.pushManager.getSubscription();
+    pushOn = !!s && Notification.permission === 'granted';
+    if (pushOn) sendSub(s);
+  } catch(e){}
+  renderNotif();
+}
+async function enablePush(btn){
+  if (!lsGet()) { toast('Choisis d\'abord ton nom', true); return openDecl(); }
+  btn.disabled = true;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Notifications refusées. Autorise-les dans les réglages du téléphone.', true); return; }
+    swReg = swReg || await regSW();
+    await navigator.serviceWorker.ready;
+    const s = (await swReg.pushManager.getSubscription()) || await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB) });
+    await sendSub(s);
+    pushOn = true; renderNotif(); toast('Rappels activés');
+  } catch(e){ toast('Impossible d\'activer les rappels : ' + (e.message || e), true); }
+  finally { btn.disabled = false; }
+}
+function renderNotif(){
+  const box = $('notifBox'); if (!box) return;
+  if (pushOn) { box.innerHTML = ''; syncSub(); return; }
+  if (!pushOK) {
+    box.innerHTML = isIOS && !standalone ? '<div class="notif"><p><strong>Rappels 12h30 et 19h30</strong>Sur iPhone : Partager, puis Sur l\'écran d\'accueil. Ouvre ensuite la page depuis l\'icône pour activer les rappels.</p></div>' : '';
+    return;
+  }
+  if (Notification.permission === 'denied') { box.innerHTML = '<div class="notif"><p><strong>Rappels bloqués</strong>Autorise les notifications dans les réglages du téléphone pour recevoir les rappels de 12h30 et 19h30.</p></div>'; return; }
+  box.innerHTML = '<div class="notif"><p><strong>Rappels 12h30 et 19h30</strong>Une notification si tu n\'as pas encore déclaré ton repas.</p><button class="on" id="btnNotif">Activer</button></div>';
+}
+$('notifBox').addEventListener('click', e => { const b = e.target.closest('#btnNotif'); if (b) enablePush(b); });
+
 /* ---------- Synchro ---------- */
 async function refresh(){
   if (busy) return;
@@ -691,6 +754,7 @@ if (API_URL.indexOf('http') !== 0) {
   $('grid').classList.remove('skeleton'); $('grid').innerHTML = '';
 } else {
   refresh();
+  initPush();
   setInterval(refresh, 30000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 }
