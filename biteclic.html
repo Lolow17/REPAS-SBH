@@ -337,7 +337,8 @@ function acces_(db, code) { return !!(db.config && db.config.codeSecret) && Stri
 function jourSBH_(now) { return new Date(now - 4 * 3600000).toISOString().slice(0, 10); }
 function uid_(p) { return p + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36); }
 /* Cotes fixes : verrouillées au moment de la mise (style bookmaker) */
-var COTE_BASE = 100, COTE_MARGE = 0.95, COTE_MIN = 1.05, COTE_MAX = 25;
+var COTE_BASE = 100, COTE_MARGE = 0.95, COTE_MIN = 1.05, COTE_MAX = 25, SECRET_MULT = 5;
+function multPari_(p, c) { return p.secret ? Math.round(c * SECRET_MULT * 100) / 100 : c; }
 function coteDe(nOptions, total, surOption) {
   var c = COTE_MARGE * (total + COTE_BASE * nOptions) / (surOption + COTE_BASE);
   return Math.round(Math.max(COTE_MIN, Math.min(COTE_MAX, c)) * 100) / 100;
@@ -346,7 +347,7 @@ function cotesPari(p, mises) {
   var tot = 0, par = {}, out = {};
   p.options.forEach(function (o) { par[o] = 0; });
   mises.forEach(function (m) { if (m.pari === p.id) { tot += m.montant; par[m.option] = (par[m.option] || 0) + m.montant; } });
-  p.options.forEach(function (o) { out[o] = coteDe(p.options.length, tot, par[o] || 0); });
+  p.options.forEach(function (o) { out[o] = multPari_(p, coteDe(p.options.length, tot, par[o] || 0)); });
   return out;
 }
 function fixCotes_(db) {
@@ -356,7 +357,7 @@ function fixCotes_(db) {
     if (!ms.some(function (m) { return !m.cote; })) return;
     var tot = 0, par = {};
     ms.forEach(function (m) {
-      if (!m.cote) m.cote = coteDe(p.options.length, tot, par[m.option] || 0);
+      if (!m.cote) m.cote = multPari_(p, coteDe(p.options.length, tot, par[m.option] || 0));
       tot += m.montant; par[m.option] = (par[m.option] || 0) + m.montant;
     });
   });
@@ -763,7 +764,7 @@ function openSheet(id){ document.querySelectorAll('.sheet.open').forEach(s => s.
 function closeSheets(){ const gg = myGame(); if ($('shP4').classList.contains('open') && gg && !p4Actif(gg)) markSeenP4(gg.id); const dd = myDuel(); if ($('shDuel').classList.contains('open') && dd && !actif(dd)) markSeen(dd.id); document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); $('scrim').classList.remove('open'); }
 function pools(p){ const o = {}; let t = 0; p.options.forEach(x => o[x] = 0); state.mises.forEach(m => { if (m.pari === p.id) { o[m.option] = (o[m.option] || 0) + m.montant; t += m.montant; } }); return { o, t }; }
 function creditDispo(){ if (!me || !state) return false; const j = jourSBH_(sNow()); return !state.paris.some(p => p.auteur === me && p.jour === j); }
-function coteNow(p, o){ const c = state.cotes && state.cotes[p.id]; return c && c[o] ? c[o] : coteDe(p.options.length, 0, 0); }
+function coteNow(p, o){ const c = state.cotes && state.cotes[p.id]; return c && c[o] ? c[o] : multPari_(p, coteDe(p.options.length, 0, 0)); }
 function pari(id){ return state.paris.find(p => p.id === id); }
 const LBL = { ouvert:'Ouvert', ferme:'Mises fermées', regle:'Réglé' };
 
@@ -784,14 +785,14 @@ function render(){
 function renderParis(){
   if (filtre === 'secret' && !state.secretOk) {
     if (secretCode && state._code === secretCode) { secretCode = ''; store.set(LS_SECRET, ''); }
-    $('list').innerHTML = '<div class="card"><h3>Paris secrets</h3><p class="note" style="margin-top:-4px">Réservés à ceux qui ont le code. Sans le code, ces paris sont invisibles.</p>' +
+    $('list').innerHTML = '<div class="card"><h3>Paris secrets</h3><p class="note" style="margin-top:-4px">Réservés à ceux qui ont le code, avec des cotes multipliées par 5. Sans le code, ces paris sont invisibles.</p>' +
       (state.secretActif ? '<label class="lbl" for="secIn">Code secret</label><input type="password" id="secIn" autocomplete="off" inputmode="text"><button class="btn btn-p" id="secGo">Déverrouiller</button>'
                          : '<p class="note">L\'admin n\'a pas encore défini de code (Réglages admin).</p>') + '</div>';
     return;
   }
   const ps = state.paris.filter(p => filtre === 'secret' ? !!p.secret : (!p.secret && (filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle')))
     .slice().reverse().sort((a, b) => filtre === 'secret' ? (a.statut === 'regle') - (b.statut === 'regle') : 0);
-  const lock = filtre === 'secret' ? '<p class="note" style="margin:0 0 12px;display:flex;justify-content:space-between;gap:10px"><span>Paris secrets déverrouillés sur ce téléphone.</span><button class="link" id="secLock" style="margin:0">Verrouiller</button></p>' : '';
+  const lock = filtre === 'secret' ? '<p class="note" style="margin:0 0 12px;display:flex;justify-content:space-between;gap:10px"><span>Paris secrets déverrouillés. Ici, les cotes sont multipliées par 5.</span><button class="link" id="secLock" style="margin:0">Verrouiller</button></p>' : '';
   if (!ps.length) { $('list').innerHTML = lock + '<p class="empty">' + (filtre === 'cours' ? 'Aucun pari en cours.' : filtre === 'secret' ? 'Aucun pari secret pour le moment.' : 'Aucun pari terminé pour le moment.') + '</p>'; return; }
   $('list').innerHTML = lock + ps.map(p => {
     const { o, t } = pools(p);
@@ -1291,7 +1292,7 @@ function openPari(id){
   $('pDel').hidden = !p;
   czSel = new Set(p ? (p.concernes || []) : []);
   renderCz();
-  $('pNote').textContent = (!id && filtre === 'secret' && state.secretOk ? 'Pari secret : visible uniquement par ceux qui ont le code. ' : '') + (pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.');
+  $('pNote').textContent = (!id && filtre === 'secret' && state.secretOk ? 'Pari secret : visible uniquement par ceux qui ont le code, cotes x5. ' : '') + (pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.');
   openSheet('shPari');
 }
 function renderCz(){
