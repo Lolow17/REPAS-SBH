@@ -189,6 +189,7 @@ button.row{width:100%;text-align:left}
     <div class="seg" id="segParis">
       <button data-f="cours" aria-pressed="true">En cours</button>
       <button data-f="fini" aria-pressed="false">Terminés</button>
+      <button data-f="secret" aria-pressed="false">Secrets</button>
     </div>
     <div id="list"><p class="empty">Chargement</p></div>
     <button class="btn btn-p" id="btnNew" hidden>Proposer un pari</button>
@@ -312,6 +313,8 @@ button.row{width:100%;text-align:left}
     <input type="number" id="aDepart" inputmode="numeric" min="1">
     <label class="lbl" for="aPin">Nouveau code admin (laisser vide pour garder l'actuel)</label>
     <input type="text" id="aPin" autocomplete="off">
+    <label class="lbl" for="aCode">Code des paris secrets (laisser vide pour garder l'actuel)</label>
+    <input type="text" id="aCode" autocomplete="off">
     <button class="btn btn-p" id="aSave">Enregistrer</button>
     <button class="btn btn-s" id="aQuit">Quitter le mode admin</button>
   </div>
@@ -330,6 +333,7 @@ function cleanList_(a) {
   return out;
 }
 function concernes_(db, list) { return cleanList_(list).filter(function (j) { return db.joueurs.indexOf(j) >= 0; }); }
+function acces_(db, code) { return !!(db.config && db.config.codeSecret) && String(code || '').trim() === String(db.config.codeSecret); }
 function jourSBH_(now) { return new Date(now - 4 * 3600000).toISOString().slice(0, 10); }
 function uid_(p) { return p + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36); }
 /* Cotes fixes : verrouillées au moment de la mise (style bookmaker) */
@@ -457,14 +461,18 @@ function statsP4(db) {
   });
   return s;
 }
-function publicState(db, now) {
+function publicState(db, now, code) {
   now = now || Date.now(); db.defis = db.defis || []; fixCotes_(db);
-  var cotes = {}; db.paris.forEach(function (p) { if (p.statut !== 'regle') cotes[p.id] = cotesPari(p, db.mises); });
+  var acc = acces_(db, code);
+  var paris = db.paris.filter(function (p) { return !p.secret || acc; });
+  var vis = {}; paris.forEach(function (p) { vis[p.id] = 1; });
+  var mises = db.mises.filter(function (m) { return vis[m.pari]; });
+  var cotes = {}; paris.forEach(function (p) { if (p.statut !== 'regle') cotes[p.id] = cotesPari(p, db.mises); });
   db.defis.forEach(function (d) { advanceDuel(d, now); });
   var defis = db.defis.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 40).map(maskDuel_);
   db.p4 = db.p4 || []; db.p4.forEach(function (g) { advanceP4(g, now); });
   var p4 = db.p4.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 30);
-  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: db.paris, mises: db.mises, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now, cotes: cotes, p4: p4, statsP4: statsP4(db), p4Gain: P4_GAIN,
+  return { ok: true, joueurs: db.joueurs, depart: db.config.depart, paris: paris, mises: mises, secretOk: acc, secretActif: !!db.config.codeSecret, soldes: calcSoldes(db), defis: defis, statsPC: statsPC(db), now: now, cotes: cotes, p4: p4, statsP4: statsP4(db), p4Gain: P4_GAIN,
     bonusMontant: BONUS_JOUR, bonusPris: (db.bonus || []).filter(function (b) { return b.jour === jourSBH_(now); }).map(function (b) { return b.joueur; }) };
 }
 function applyAction(db, a, now) {
@@ -486,6 +494,11 @@ function applyAction(db, a, now) {
     var d = db.defis.filter(function (x) { return x.id === id; })[0];
     if (!d) fail('Ce défi n\'existe plus.');
     return d;
+  }
+  if (a.action === 'secret_check') {
+    if (!db.config.codeSecret) fail('Aucun code secret n\'a encore été défini par l\'admin.');
+    if (!acces_(db, a.code)) fail('Code secret incorrect.');
+    return;
   }
   if (a.action === 'p4_lancer') {
     if (db.joueurs.indexOf(a.joueur) < 0 || db.joueurs.indexOf(a.cible) < 0) fail('Joueur inconnu.');
@@ -584,13 +597,15 @@ function applyAction(db, a, now) {
     if (op.length < 2) fail('Il faut au moins 2 options.');
     if (op.length > 30) fail('30 options maximum.');
     var jr = jourSBH_(now);
+    if (a.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
     if (db.paris.some(function (x) { return x.auteur === a.joueur && x.jour === jr; })) fail('Tu as déjà utilisé ton crédit du jour. Reviens demain.');
-    db.paris.push({ id: uid_('p'), titre: tp, options: op, statut: 'ouvert', gagnant: '', auteur: a.joueur, jour: jr, concernes: concernes_(db, a.concernes) });
+    db.paris.push({ id: uid_('p'), titre: tp, options: op, statut: 'ouvert', gagnant: '', auteur: a.joueur, jour: jr, concernes: concernes_(db, a.concernes), secret: !!a.secret });
     return;
   }
   if (a.action === 'pari_retirer') {
     var pr = findPari(a.id);
     if (pr.auteur !== a.joueur) fail('Ce pari n\'est pas à toi.');
+    if (pr.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
     if (db.mises.some(function (m) { return m.pari === pr.id; })) fail('Il y a déjà des mises, seul l\'admin peut le supprimer.');
     db.paris = db.paris.filter(function (x) { return x.id !== pr.id; });
     return;
@@ -607,6 +622,7 @@ function applyAction(db, a, now) {
   if (a.action === 'miser') {
     var p = findPari(a.pari), montant = Math.floor(Number(a.montant));
     if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
+    if (p.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
     if (p.statut !== 'ouvert') fail('Les mises sont fermées sur ce pari.');
     if ((p.concernes || []).indexOf(a.joueur) >= 0) fail('Tu es concerné par ce pari, tu ne peux pas miser dessus.');
     if (p.options.indexOf(a.option) < 0) fail('Option inconnue.');
@@ -634,7 +650,8 @@ function applyAction(db, a, now) {
         db.mises = db.mises.filter(function (m) { return !(m.pari === e.id && e.concernes.indexOf(m.joueur) >= 0); });
       }
     } else {
-      db.paris.push({ id: uid_('p'), titre: titre, options: options, statut: 'ouvert', gagnant: '', auteur: '', jour: jourSBH_(now), concernes: concernes_(db, a.concernes) });
+      if (a.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
+      db.paris.push({ id: uid_('p'), titre: titre, options: options, statut: 'ouvert', gagnant: '', auteur: '', jour: jourSBH_(now), concernes: concernes_(db, a.concernes), secret: !!a.secret });
     }
     return;
   }
@@ -676,6 +693,7 @@ function applyAction(db, a, now) {
     if (!(depart >= 1)) fail('Nombre de skegs invalide.');
     db.joueurs = joueurs; db.config.depart = depart;
     if (a.newPin) db.config.pin = String(a.newPin).trim();
+    if (a.newCodeSecret) db.config.codeSecret = String(a.newCodeSecret).trim();
     return;
   }
   fail('Action inconnue.');
@@ -692,6 +710,8 @@ const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return
 
 let state = null, me = store.get(LS_ME) || '', filtre = 'cours', bet = null, editId = null, busy = false;
 let rankMode = 'paris';
+const LS_SECRET = 'biteclic_secret';
+let secretCode = store.get(LS_SECRET) || '';
 let czSel = new Set();
 let offset = 0, lastKey = '', launchTarget = '', pollT = null;
 let pin = ''; try { pin = sessionStorage.getItem(SS_PIN) || ''; } catch(e){}
@@ -710,16 +730,18 @@ async function api(payload){
   if (DEMO) {
     const db = demoDb();
     if (!db.defis) db.defis = [];
-    if (payload) { applyAction(db, payload, Date.now()); store.set(LS_DEMO, JSON.stringify(db)); }
-    const st = JSON.parse(JSON.stringify(publicState(db, Date.now())));
-    st.enLigne = me ? [me] : []; offset = 0;
+    if (payload) { applyAction(db, Object.assign({ code: secretCode }, payload), Date.now()); store.set(LS_DEMO, JSON.stringify(db)); }
+    const st = JSON.parse(JSON.stringify(publicState(db, Date.now(), secretCode)));
+    st.enLigne = me ? [me] : []; offset = 0; st._code = secretCode;
     return st;
   }
   const t0 = Date.now();
-  const r = payload ? await fetch(API_URL, { method:'POST', body: JSON.stringify(payload) }) : await fetch(API_URL + (me ? '?moi=' + encodeURIComponent(me) : ''));
+  const qs = [me ? 'moi=' + encodeURIComponent(me) : '', secretCode ? 'code=' + encodeURIComponent(secretCode) : ''].filter(Boolean).join('&');
+  const r = payload ? await fetch(API_URL, { method:'POST', body: JSON.stringify(Object.assign({ code: secretCode }, payload)) }) : await fetch(API_URL + (qs ? '?' + qs : ''));
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'Erreur');
   if (j.now) offset = j.now - Math.round((t0 + Date.now()) / 2);
+  j._code = secretCode;
   return j;
 }
 async function send(payload, okMsg, btn){
@@ -760,9 +782,18 @@ function render(){
   renderBonus(); renderNotif(); renderParis(); renderMises(); renderRank(); renderPC(); renderP4(); syncDuel(); syncP4();
 }
 function renderParis(){
-  const ps = state.paris.filter(p => filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle').slice().reverse();
-  if (!ps.length) { $('list').innerHTML = '<p class="empty">' + (filtre === 'cours' ? 'Aucun pari en cours.' : 'Aucun pari terminé pour le moment.') + '</p>'; return; }
-  $('list').innerHTML = ps.map(p => {
+  if (filtre === 'secret' && !state.secretOk) {
+    if (secretCode && state._code === secretCode) { secretCode = ''; store.set(LS_SECRET, ''); }
+    $('list').innerHTML = '<div class="card"><h3>Paris secrets</h3><p class="note" style="margin-top:-4px">Réservés à ceux qui ont le code. Sans le code, ces paris sont invisibles.</p>' +
+      (state.secretActif ? '<label class="lbl" for="secIn">Code secret</label><input type="password" id="secIn" autocomplete="off" inputmode="text"><button class="btn btn-p" id="secGo">Déverrouiller</button>'
+                         : '<p class="note">L\'admin n\'a pas encore défini de code (Réglages admin).</p>') + '</div>';
+    return;
+  }
+  const ps = state.paris.filter(p => filtre === 'secret' ? !!p.secret : (!p.secret && (filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle')))
+    .slice().reverse().sort((a, b) => filtre === 'secret' ? (a.statut === 'regle') - (b.statut === 'regle') : 0);
+  const lock = filtre === 'secret' ? '<p class="note" style="margin:0 0 12px;display:flex;justify-content:space-between;gap:10px"><span>Paris secrets déverrouillés sur ce téléphone.</span><button class="link" id="secLock" style="margin:0">Verrouiller</button></p>' : '';
+  if (!ps.length) { $('list').innerHTML = lock + '<p class="empty">' + (filtre === 'cours' ? 'Aucun pari en cours.' : filtre === 'secret' ? 'Aucun pari secret pour le moment.' : 'Aucun pari terminé pour le moment.') + '</p>'; return; }
+  $('list').innerHTML = lock + ps.map(p => {
     const { o, t } = pools(p);
     const mine = {}; state.mises.forEach(m => { if (m.pari === p.id && m.joueur === me) mine[m.option] = (mine[m.option] || 0) + m.montant; });
     const odds = p.options.map((x, i) => {
@@ -778,7 +809,7 @@ function renderParis(){
       (p.statut === 'ferme' ? '<button class="chip" data-act="ouvert" data-id="' + esc(p.id) + '">Rouvrir</button>' : '') +
       (p.statut !== 'regle' ? '<button class="chip" data-act="regler" data-id="' + esc(p.id) + '">Régler</button>' : '<button class="chip" data-act="ferme" data-id="' + esc(p.id) + '">Annuler le résultat</button>') +
       '<button class="chip danger" data-act="del" data-id="' + esc(p.id) + '">Supprimer</button></div>';
-    return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span><span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
+    return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span>' + (p.secret ? '<span class="badge" style="background:rgba(242,193,78,.14);color:var(--warn)">Secret</span>' : '') + '<span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
       '<h3>' + esc(p.titre) + '</h3>' + (p.auteur ? '<p class="note" style="margin:-6px 0 10px">Proposé par ' + esc(p.auteur) + '</p>' : '') +
       ((p.concernes || []).length ? '<p class="concerne">Ne peuvent pas miser : ' + p.concernes.map(esc).join(', ') + '</p>' : '') +
       '<div class="odds">' + odds + '</div>' + betsHtml(p) + adm +
@@ -800,6 +831,15 @@ function betsHtml(p){
 }
 const openBets = new Set();
 document.addEventListener('toggle', e => { const d = e.target; if (d.classList && d.classList.contains('bets') && d.dataset.id) { d.open ? openBets.add(d.dataset.id) : openBets.delete(d.dataset.id); } }, true);
+$('list').addEventListener('click', async e => {
+  if (e.target.closest('#secLock')) { secretCode = ''; store.set(LS_SECRET, ''); await refresh(); return; }
+  if (!e.target.closest('#secGo')) return;
+  const v = ($('secIn').value || '').trim(); if (!v) return toast('Entre le code.', true);
+  try { busy = true; await api({ action:'secret_check', code: v }); }
+  catch(err){ busy = false; return toast(err.message || 'Code incorrect', true); }
+  busy = false; secretCode = v; store.set(LS_SECRET, v); toast('Paris secrets déverrouillés'); await refresh();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'secIn') { const b = $('secGo'); if (b) b.click(); } });
 function renderMises(){
   if (!me) { $('mises').innerHTML = '<p class="empty">Choisis ton nom en haut à droite pour voir tes mises.</p>'; return; }
   const ms = state.mises.filter(m => m.joueur === me).slice().reverse();
@@ -1236,7 +1276,9 @@ $('btnAdmin').addEventListener('click', async () => {
 $('aQuit').addEventListener('click', () => { pin = ''; try { sessionStorage.removeItem(SS_PIN); } catch(e){} closeSheets(); render(); });
 $('aSave').addEventListener('click', async () => {
   const np = $('aPin').value.trim();
-  if (await send({ action:'config', pin, joueurs: $('aJoueurs').value.split('\n'), depart: $('aDepart').value, newPin: np }, 'Réglages enregistrés', $('aSave'))) {
+  const nc = $('aCode').value.trim();
+  if (await send({ action:'config', pin, joueurs: $('aJoueurs').value.split('\n'), depart: $('aDepart').value, newPin: np, newCodeSecret: nc }, 'Réglages enregistrés', $('aSave'))) {
+    if (nc) { secretCode = nc; store.set(LS_SECRET, nc); setTimeout(refresh, 0); }
     if (np) { pin = np; try { sessionStorage.setItem(SS_PIN, np); } catch(e){} }
     closeSheets();
   }
@@ -1249,7 +1291,7 @@ function openPari(id){
   $('pDel').hidden = !p;
   czSel = new Set(p ? (p.concernes || []) : []);
   renderCz();
-  $('pNote').textContent = pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.';
+  $('pNote').textContent = (!id && filtre === 'secret' && state.secretOk ? 'Pari secret : visible uniquement par ceux qui ont le code. ' : '') + (pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.');
   openSheet('shPari');
 }
 function renderCz(){
@@ -1269,8 +1311,9 @@ $('pSave').addEventListener('click', async () => {
     const p0 = pari(editId), lost = p0 ? state.mises.filter(m => m.pari === editId && czSel.has(m.joueur)) : [];
     if (lost.length && !confirm(lost.length + ' mise(s) de joueurs concernés seront annulées et remboursées. Continuer ?')) return;
   }
-  const payload = pin ? { action:'pari_save', pin, id: editId, titre: $('pTitre').value, options: $('pOpts').value.split('\n'), concernes: cz }
-                      : { action:'pari_proposer', joueur: me, titre: $('pTitre').value, options: $('pOpts').value.split('\n'), concernes: cz };
+  const sec = !editId && filtre === 'secret' && state.secretOk;
+  const payload = pin ? { action:'pari_save', pin, id: editId, titre: $('pTitre').value, options: $('pOpts').value.split('\n'), concernes: cz, secret: sec }
+                      : { action:'pari_proposer', joueur: me, titre: $('pTitre').value, options: $('pOpts').value.split('\n'), concernes: cz, secret: sec };
   if (await send(payload, pin ? 'Pari enregistré' : 'Pari publié', $('pSave'))) closeSheets();
 });
 $('pDel').addEventListener('click', () => delPari(editId));
