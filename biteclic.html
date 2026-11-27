@@ -90,7 +90,7 @@ h2{font-family:var(--disp);font-size:22px;margin:6px 0 12px;letter-spacing:-.02e
 .x{width:34px;height:34px;border-radius:50%;background:var(--surf2);font-size:18px;line-height:1}
 .sheet-b{padding:4px 16px calc(18px + env(safe-area-inset-bottom));overflow:auto}
 .lbl{display:block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px}
-input[type=text],input[type=number],textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;outline:none}
+input[type=text],input[type=number],input[type=password],textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;outline:none}
 input:focus,textarea:focus{border-color:var(--acc)}
 textarea{min-height:150px;resize:vertical}
 .btn{display:block;width:100%;padding:14px;border-radius:14px;font-weight:700;font-size:16px;margin-top:14px}
@@ -189,7 +189,7 @@ button.row{width:100%;text-align:left}
     <div class="seg" id="segParis">
       <button data-f="cours" aria-pressed="true">En cours</button>
       <button data-f="fini" aria-pressed="false">Terminés</button>
-      <button data-f="secret" aria-pressed="false">Secrets</button>
+      <button data-f="secret" aria-pressed="false">WIP</button>
     </div>
     <div id="list"><p class="empty">Chargement</p></div>
     <button class="btn btn-p" id="btnNew" hidden>Proposer un pari</button>
@@ -313,7 +313,7 @@ button.row{width:100%;text-align:left}
     <input type="number" id="aDepart" inputmode="numeric" min="1">
     <label class="lbl" for="aPin">Nouveau code admin (laisser vide pour garder l'actuel)</label>
     <input type="text" id="aPin" autocomplete="off">
-    <label class="lbl" for="aCode">Code des paris secrets (laisser vide pour garder l'actuel)</label>
+    <label class="lbl" for="aCode">Code d'accès « Work in progress » (laisser vide pour garder l'actuel)</label>
     <input type="text" id="aCode" autocomplete="off">
     <button class="btn btn-p" id="aSave">Enregistrer</button>
     <button class="btn btn-s" id="aQuit">Quitter le mode admin</button>
@@ -497,8 +497,8 @@ function applyAction(db, a, now) {
     return d;
   }
   if (a.action === 'secret_check') {
-    if (!db.config.codeSecret) fail('Aucun code secret n\'a encore été défini par l\'admin.');
-    if (!acces_(db, a.code)) fail('Code secret incorrect.');
+    if (!db.config.codeSecret) fail('Section pas encore disponible.');
+    if (!acces_(db, a.code)) fail('Code incorrect.');
     return;
   }
   if (a.action === 'p4_lancer') {
@@ -598,7 +598,7 @@ function applyAction(db, a, now) {
     if (op.length < 2) fail('Il faut au moins 2 options.');
     if (op.length > 30) fail('30 options maximum.');
     var jr = jourSBH_(now);
-    if (a.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
+    if (a.secret && !acces_(db, a.code)) fail('Code incorrect.');
     if (db.paris.some(function (x) { return x.auteur === a.joueur && x.jour === jr; })) fail('Tu as déjà utilisé ton crédit du jour. Reviens demain.');
     db.paris.push({ id: uid_('p'), titre: tp, options: op, statut: 'ouvert', gagnant: '', auteur: a.joueur, jour: jr, concernes: concernes_(db, a.concernes), secret: !!a.secret });
     return;
@@ -606,7 +606,7 @@ function applyAction(db, a, now) {
   if (a.action === 'pari_retirer') {
     var pr = findPari(a.id);
     if (pr.auteur !== a.joueur) fail('Ce pari n\'est pas à toi.');
-    if (pr.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
+    if (pr.secret && !acces_(db, a.code)) fail('Code incorrect.');
     if (db.mises.some(function (m) { return m.pari === pr.id; })) fail('Il y a déjà des mises, seul l\'admin peut le supprimer.');
     db.paris = db.paris.filter(function (x) { return x.id !== pr.id; });
     return;
@@ -623,7 +623,7 @@ function applyAction(db, a, now) {
   if (a.action === 'miser') {
     var p = findPari(a.pari), montant = Math.floor(Number(a.montant));
     if (db.joueurs.indexOf(a.joueur) < 0) fail('Joueur inconnu.');
-    if (p.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
+    if (p.secret && !acces_(db, a.code)) fail('Code incorrect.');
     if (p.statut !== 'ouvert') fail('Les mises sont fermées sur ce pari.');
     if ((p.concernes || []).indexOf(a.joueur) >= 0) fail('Tu es concerné par ce pari, tu ne peux pas miser dessus.');
     if (p.options.indexOf(a.option) < 0) fail('Option inconnue.');
@@ -651,7 +651,7 @@ function applyAction(db, a, now) {
         db.mises = db.mises.filter(function (m) { return !(m.pari === e.id && e.concernes.indexOf(m.joueur) >= 0); });
       }
     } else {
-      if (a.secret && !acces_(db, a.code)) fail('Code secret incorrect.');
+      if (a.secret && !acces_(db, a.code)) fail('Code incorrect.');
       db.paris.push({ id: uid_('p'), titre: titre, options: options, statut: 'ouvert', gagnant: '', auteur: '', jour: jourSBH_(now), concernes: concernes_(db, a.concernes), secret: !!a.secret });
     }
     return;
@@ -775,24 +775,24 @@ function render(){
   $('meName').textContent = me || 'Qui es-tu ?';
   $('meSolde').textContent = me ? fmt(state.soldes[me]) : '-';
   const cr = creditDispo();
-  $('btnNew').hidden = !me && !pin;
+  $('btnNew').hidden = (!me && !pin) || (filtre === 'secret' && !state.secretOk);
   $('btnNew').textContent = pin ? 'Nouveau pari' : 'Proposer un pari';
   $('btnNew').disabled = !pin && !cr;
-  $('creditNote').textContent = pin || !me ? '' : (cr ? '1 crédit disponible aujourd\'hui pour proposer un pari.' : 'Crédit du jour utilisé. Prochain crédit demain.');
+  $('creditNote').textContent = pin || !me || (filtre === 'secret' && !state.secretOk) ? '' : (cr ? '1 crédit disponible aujourd\'hui pour proposer un pari.' : 'Crédit du jour utilisé. Prochain crédit demain.');
   $('btnAdmin').textContent = pin ? 'Réglages admin' : 'Administration';
   renderBonus(); renderNotif(); renderParis(); renderMises(); renderRank(); renderPC(); renderP4(); syncDuel(); syncP4();
 }
 function renderParis(){
   if (filtre === 'secret' && !state.secretOk) {
     if (secretCode && state._code === secretCode) { secretCode = ''; store.set(LS_SECRET, ''); }
-    $('list').innerHTML = '<div class="card"><h3>Paris secrets</h3><p class="note" style="margin-top:-4px">Réservés à ceux qui ont le code, avec des cotes multipliées par 5. Sans le code, ces paris sont invisibles.</p>' +
-      (state.secretActif ? '<label class="lbl" for="secIn">Code secret</label><input type="password" id="secIn" autocomplete="off" inputmode="text"><button class="btn btn-p" id="secGo">Déverrouiller</button>'
-                         : '<p class="note">L\'admin n\'a pas encore défini de code (Réglages admin).</p>') + '</div>';
+    $('list').innerHTML = '<div class="card"><h3>Work in progress</h3><p class="note" style="margin-top:-4px">Nouvelle section en cours de développement.</p>' +
+      (state.secretActif ? '<label class="lbl" for="secIn">Accès bêta</label><input type="password" id="secIn" autocomplete="off" inputmode="text"><button class="btn btn-s" id="secGo">Valider</button>'
+                         : '<p class="note">Bientôt disponible.</p>') + '</div>';
     return;
   }
   const ps = state.paris.filter(p => filtre === 'secret' ? !!p.secret : (!p.secret && (filtre === 'cours' ? p.statut !== 'regle' : p.statut === 'regle')))
     .slice().reverse().sort((a, b) => filtre === 'secret' ? (a.statut === 'regle') - (b.statut === 'regle') : 0);
-  const lock = filtre === 'secret' ? '<p class="note" style="margin:0 0 12px;display:flex;justify-content:space-between;gap:10px"><span>Paris secrets déverrouillés. Ici, les cotes sont multipliées par 5.</span><button class="link" id="secLock" style="margin:0">Verrouiller</button></p>' : '';
+  const lock = filtre === 'secret' ? '<p class="note" style="margin:0 0 12px;display:flex;justify-content:space-between;gap:10px"><span>Accès débloqué. Cotes x5, rien ne sort d\'ici.</span><button class="link" id="secLock" style="margin:0">Verrouiller</button></p>' : '';
   if (!ps.length) { $('list').innerHTML = lock + '<p class="empty">' + (filtre === 'cours' ? 'Aucun pari en cours.' : filtre === 'secret' ? 'Aucun pari secret pour le moment.' : 'Aucun pari terminé pour le moment.') + '</p>'; return; }
   $('list').innerHTML = lock + ps.map(p => {
     const { o, t } = pools(p);
@@ -810,7 +810,7 @@ function renderParis(){
       (p.statut === 'ferme' ? '<button class="chip" data-act="ouvert" data-id="' + esc(p.id) + '">Rouvrir</button>' : '') +
       (p.statut !== 'regle' ? '<button class="chip" data-act="regler" data-id="' + esc(p.id) + '">Régler</button>' : '<button class="chip" data-act="ferme" data-id="' + esc(p.id) + '">Annuler le résultat</button>') +
       '<button class="chip danger" data-act="del" data-id="' + esc(p.id) + '">Supprimer</button></div>';
-    return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span>' + (p.secret ? '<span class="badge" style="background:rgba(242,193,78,.14);color:var(--warn)">Secret</span>' : '') + '<span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
+    return '<article class="card"><div class="card-h"><span class="badge b-' + p.statut + '">' + LBL[p.statut] + '</span>' + (p.secret ? '<span class="badge" style="background:rgba(242,193,78,.14);color:var(--warn)">WIP</span>' : '') + '<span>Cagnotte <b>' + fmt(t) + '</b></span></div>' +
       '<h3>' + esc(p.titre) + '</h3>' + (p.auteur ? '<p class="note" style="margin:-6px 0 10px">Proposé par ' + esc(p.auteur) + '</p>' : '') +
       ((p.concernes || []).length ? '<p class="concerne">Ne peuvent pas miser : ' + p.concernes.map(esc).join(', ') + '</p>' : '') +
       '<div class="odds">' + odds + '</div>' + betsHtml(p) + adm +
@@ -835,10 +835,10 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.classList &
 $('list').addEventListener('click', async e => {
   if (e.target.closest('#secLock')) { secretCode = ''; store.set(LS_SECRET, ''); await refresh(); return; }
   if (!e.target.closest('#secGo')) return;
-  const v = ($('secIn').value || '').trim(); if (!v) return toast('Entre le code.', true);
+  const v = ($('secIn').value || '').trim(); if (!v) return toast('Entre le code d\'accès.', true);
   try { busy = true; await api({ action:'secret_check', code: v }); }
   catch(err){ busy = false; return toast(err.message || 'Code incorrect', true); }
-  busy = false; secretCode = v; store.set(LS_SECRET, v); toast('Paris secrets déverrouillés'); await refresh();
+  busy = false; secretCode = v; store.set(LS_SECRET, v); toast('Accès débloqué'); await refresh();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'secIn') { const b = $('secGo'); if (b) b.click(); } });
 function renderMises(){
@@ -1292,7 +1292,7 @@ function openPari(id){
   $('pDel').hidden = !p;
   czSel = new Set(p ? (p.concernes || []) : []);
   renderCz();
-  $('pNote').textContent = (!id && filtre === 'secret' && state.secretOk ? 'Pari secret : visible uniquement par ceux qui ont le code, cotes x5. ' : '') + (pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.');
+  $('pNote').textContent = (!id && filtre === 'secret' && state.secretOk ? 'Pari WIP : visible uniquement par ceux qui ont l\'accès, cotes x5. ' : '') + (pin ? '' : 'Tu as 1 crédit par jour pour proposer un pari. Une fois publié, tout le monde peut miser dessus, et c\'est l\'admin qui donne le résultat.');
   openSheet('shPari');
 }
 function renderCz(){
@@ -1352,7 +1352,7 @@ $('segParis').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   filtre = b.dataset.f;
   document.querySelectorAll('#segParis button').forEach(x => x.setAttribute('aria-pressed', x === b));
-  renderParis();
+  render();
 });
 $('scrim').addEventListener('click', closeSheets);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
