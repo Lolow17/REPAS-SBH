@@ -465,7 +465,7 @@ main{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
     </div>
     <div id="wPC" hidden>
       <div class="ghead"><button class="gback" data-g="home" aria-label="Retour aux jeux">&larr;</button><h2>Pour combien ?</h2></div>
-      <p class="note" style="margin:0 0 14px">Choisis un adversaire et lance-lui un défi.</p>
+      <p class="note" style="margin:0 0 14px">Choisis un adversaire et lance-lui un défi. Celui qui ne fait pas le défi gagne <b id="pcGainTxt">+100</b> skegs.</p>
       <div id="pcPlayers"></div>
       <h2 style="margin-top:26px">Derniers défis</h2>
       <div id="pcHist"></div>
@@ -653,7 +653,7 @@ function gainsPari(p, mises) {
   });
   return g;
 }
-var PC_GAIN = 10; /* skegs pour celui qui inflige un Pour combien */
+var PC_GAIN = 100; /* skegs pour celui qui inflige un Pour combien */
 function detailSoldes(db) {
   var d = {};
   db.joueurs.forEach(function (j) { d[j] = { depart: db.config.depart, ration: 0, paris: 0, enJeu: 0, pc: 0, p4: 0, bn: 0 }; });
@@ -665,7 +665,7 @@ function detailSoldes(db) {
   (db.defis || []).forEach(function (x) {
     if (x.statut !== 'fini' || !x.perdant) return;
     var w = x.perdant === x.de ? x.a : x.de;
-    if (d[w]) d[w].pc += PC_GAIN;
+    if (d[w]) d[w].pc += (x.gain || 10);
   });
   db.paris.forEach(function (p) {
     if (p.statut !== 'regle') return;
@@ -1012,7 +1012,7 @@ function applyAction(db, a, now) {
       if (d.de === a.joueur || d.a === a.joueur) fail('Tu as déjà un défi en cours.');
       if (d.de === a.cible || d.a === a.cible) fail(a.cible + ' a déjà un défi en cours.');
     });
-    db.defis.push({ id: uid_('d'), de: a.joueur, a: a.cible, defi: txt, reverse: false, max: 0, statut: 'attente', manches: [], perdant: '', ts: now, maj: now });
+    db.defis.push({ id: uid_('d'), de: a.joueur, a: a.cible, defi: txt, reverse: false, max: 0, statut: 'attente', manches: [], perdant: '', gain: PC_GAIN, ts: now, maj: now });
     return;
   }
   if (a.action === 'defi_repondre') {
@@ -1368,7 +1368,7 @@ function renderRank(){
       '<span class="rval"><b>' + fmt(r.total) + '</b><small class="' + (net > 0 ? 'pos' : net < 0 ? 'neg' : '') + '">' + sgn(net) + '</small></span>' +
       det + '</button>';
   }).join('');
-  h += '<p class="note">Total = skegs disponibles + skegs misés sur des paris pas encore réglés. Touche un joueur pour voir d\'où viennent ses skegs. Un Pour combien infligé rapporte ' + (state.pcGain || 10) + ' skegs.</p>';
+  h += '<p class="note">Total = skegs disponibles + skegs misés sur des paris pas encore réglés. Touche un joueur pour voir d\'où viennent ses skegs. Un Pour combien infligé rapporte ' + (state.pcGain || 100) + ' skegs.</p>';
   $('rank').innerHTML = h;
 }
 $('rank').addEventListener('click', e => {
@@ -1888,6 +1888,7 @@ function renderHub(){
   if (!state) return;
   const on = (state.enLigne || []).filter(j => j !== me).length;
   const d = myDuel(), g4 = myGame(), gb = myBN();
+  if ($('pcGainTxt')) $('pcGainTxt').textContent = '+' + (state.pcGain || 100);
   $('hubPC').textContent = d && actif(d) ? 'Défi en cours' : on + ' en ligne';
   $('hubP4').textContent = g4 && p4Actif(g4) ? (g4.statut === 'jeu' && g4.tour === (g4.j1 === me ? 1 : 2) ? 'À toi de jouer' : 'Partie en cours') : '+' + (state.p4Gain || 10) + ' skegs';
   $('hubBN').textContent = gb && bnActif(gb) ? (gb.statut === 'jeu' && gb.vue && gb.tour === gb.vue.moi ? 'À toi de tirer' : 'Partie en cours') : '+' + (state.bnGain || 30) + ' skegs';
