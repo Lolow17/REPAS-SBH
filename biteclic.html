@@ -168,16 +168,37 @@ button.row{width:100%;text-align:left}
 .p4who span{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
 .p4who i{width:14px;height:14px;border-radius:50%;flex:none}
 .p4who .on{color:var(--txt)} .p4who .off{color:var(--mut)}
-.bng{display:grid;gap:3px;background:#0b2a4a;padding:5px;border-radius:12px;margin-top:6px}
-.bng .bc{aspect-ratio:1;border-radius:4px;background:#14406b;border:0;padding:0;position:relative}
-.bng .ship{background:#8aa0ad}
-.bng .sunk{background:#4a5560}
-.bng .hit{background:var(--bad)}
-.bng .hit.sunk{background:#9b3b26}
-.bng .miss::after{content:'';position:absolute;inset:38%;border-radius:50%;background:#9cc3e6}
-.bng .last{outline:2px solid #fff;outline-offset:-2px}
-.bng .shoot:active{background:#1f5c96}
-.bng.small{max-width:62%;margin-left:auto;margin-right:auto;gap:2px;padding:4px}
+.bng{display:grid;gap:3px;padding:8px 8px 8px 4px;border-radius:16px;margin-top:8px;
+  background:radial-gradient(120% 90% at 30% 0%,#1f6aa8 0%,#0f3f6e 55%,#0a2a4c 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 8px 20px rgba(0,0,0,.35)}
+.bng .lab{font-size:10px;font-weight:700;color:rgba(200,225,255,.55);display:flex;align-items:center;justify-content:center}
+.bng .bc{aspect-ratio:1;border-radius:5px;border:0;padding:0;position:relative;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.bng.armed .bc:not(.hit):not(.miss){cursor:crosshair}
+.bng.armed button.bc:active{background:rgba(200,241,105,.35)}
+.bng.armed{box-shadow:inset 0 0 0 2px rgba(200,241,105,.55),0 8px 20px rgba(0,0,0,.35)}
+.bng .ship{background:linear-gradient(180deg,#c9d4dc,#8797a3);box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.bng .ship.sh{border-radius:3px}.bng .ship.sh.s0{border-radius:50% 3px 3px 50%}.bng .ship.sh.s1{border-radius:3px 50% 50% 3px}
+.bng .ship.sv{border-radius:3px}.bng .ship.sv.s0{border-radius:50% 50% 3px 3px}.bng .ship.sv.s1{border-radius:3px 3px 50% 50%}
+.bng .ship.s0.s1{border-radius:50%}
+.bng .sunk{background:linear-gradient(180deg,#5b4a46,#3a2c29)}
+.bng .hit::after{content:'';position:absolute;inset:22%;border-radius:50%;background:radial-gradient(circle,#ffd2a8 0%,#ff7a59 45%,#c2391b 100%);box-shadow:0 0 8px rgba(255,122,89,.8)}
+.bng .miss::after{content:'';position:absolute;inset:38%;border-radius:50%;background:rgba(220,238,255,.85);box-shadow:0 0 0 3px rgba(220,238,255,.15)}
+.bng .last{outline:2px solid #fff;outline-offset:-2px;animation:bnpulse 1.2s ease-out 2}
+@keyframes bnpulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}100%{box-shadow:0 0 0 10px rgba(255,255,255,0)}}
+@media (prefers-reduced-motion:reduce){.bng .last{animation:none}}
+.bng.small{max-width:68%;margin-left:auto;margin-right:auto;gap:2px;padding:6px 6px 6px 3px}
+.bng.small .lab{font-size:8px}
+.bng.edit button.bc:not(.ship):active{background:rgba(200,241,105,.3)}
+.bnturn{text-align:center;font-family:var(--disp);font-weight:800;font-size:20px;margin:4px 0 2px;color:var(--mut)}
+.bnturn.me{color:var(--acc)}
+.bnturn small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--mut);margin-top:2px}
+.fleet{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.fleet button{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--surf2);border:1px solid var(--line);font-weight:700;font-size:13px}
+.fleet button i{display:block;height:10px;border-radius:6px;background:linear-gradient(180deg,#c9d4dc,#8797a3)}
+.fleet button.on{border-color:var(--acc);color:var(--acc)}
+.fleet button.placed{opacity:.45}
+.fleet button.placed.on{opacity:1}
+.edrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.edrow .btn{flex:1}
 .bnh{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin-top:14px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--txt);color:var(--bg);
   padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
@@ -520,6 +541,23 @@ function bnFlotte_() {
   }
   return null;
 }
+function bnValide_(f) {
+  if (!Array.isArray(f) || f.length !== BN_FLOTTE.length) return null;
+  var tailles = f.map(function (s) { return Array.isArray(s) ? s.length : 0; }).sort(), att = BN_FLOTTE.slice().sort();
+  if (tailles.join() !== att.join()) return null;
+  var vu = {}, out = [];
+  for (var k = 0; k < f.length; k++) {
+    var s = f[k].map(function (x) { return Math.floor(Number(x)); }).sort(function (a, b) { return a - b; });
+    for (var i = 0; i < s.length; i++) { if (!(s[i] >= 0 && s[i] < BN_N * BN_N) || vu[s[i]]) return null; vu[s[i]] = 1; }
+    var h = s.length === 1 || s[1] - s[0] === 1;
+    for (var j = 1; j < s.length; j++) {
+      if (h && (s[j] - s[j - 1] !== 1 || Math.floor(s[j] / BN_N) !== Math.floor(s[0] / BN_N))) return null;
+      if (!h && s[j] - s[j - 1] !== BN_N) return null;
+    }
+    out.push(s);
+  }
+  return out;
+}
 function bnCoules_(flotte, tirs) {
   var t = {}; (tirs || []).forEach(function (x) { t[x] = 1; });
   return flotte.filter(function (s) { return s.every(function (x) { return t[x]; }); });
@@ -632,6 +670,16 @@ function applyAction(db, a, now) {
     if (b1.statut !== 'place') fail('Le placement est terminé.');
     if (b1.pret[r1]) fail('Tu es déjà prêt.');
     b1.flotte[r1] = bnFlotte_(); b1.maj = now;
+    return;
+  }
+  if (a.action === 'bn_placer') {
+    var b5 = findBN(a.id), r5 = roleBN(b5);
+    if (b5.statut !== 'place') fail('Le placement est terminé.');
+    if (b5.pret[r5]) fail('Tu es déjà prêt.');
+    var fl = bnValide_(a.flotte);
+    if (!fl) fail('Flotte invalide.');
+    b5.flotte[r5] = fl; b5.pret[r5] = true; b5.maj = now;
+    if (b5.pret[1] && b5.pret[2]) { b5.statut = 'jeu'; b5.tour = Math.random() < 0.5 ? 1 : 2; }
     return;
   }
   if (a.action === 'bn_pret') {
@@ -1353,30 +1401,66 @@ function myBN(){
   const mine = state.bn.filter(g => g.j1 === me || g.j2 === me);
   return mine.find(bnActif) || mine.find(g => seenBN().indexOf(g.id) < 0 && sNow() - g.maj < 15 * 60000) || null;
 }
-function bnGrid(kind, g){
-  const N = state.bnN || 8, v = g.vue || {}, ships = {}, sunk = {};
-  if (kind === 'moi') (v.maFlotte || []).forEach(s => s.forEach(x => ships[x] = 1));
-  if (kind === 'lui') { (v.coulesChezLui || []).forEach(s => s.forEach(x => sunk[x] = 1)); (v.flotteLui || []).forEach(s => s.forEach(x => ships[x] = 1)); }
-  const tirs = kind === 'moi' ? (v.sesTirs || {}) : (v.mesTirs || {});
+const BN_TAILLES = [4, 3, 3, 2];
+let bnEdit = null; /* { id, ships: [cells|null x4], sel, horiz } */
+function bnShipMap(ships){
+  const m = {};
+  (ships || []).forEach(s => {
+    if (!s || !s.length) return;
+    const c = s.slice().sort((a, b) => a - b), h = c.length > 1 && c[1] - c[0] === 1;
+    c.forEach((x, k) => m[x] = 'ship ' + (h ? 'sh' : 'sv') + (k === 0 ? ' s0' : '') + (k === c.length - 1 ? ' s1' : '') + (c.length === 1 ? ' s0 s1' : ''));
+  });
+  return m;
+}
+function bnGrid(kind, g, opts){
+  opts = opts || {};
+  const N = state.bnN || 8, v = g.vue || {};
+  let ships = {}, sunk = {};
+  if (kind === 'moi') ships = bnShipMap(opts.ships || v.maFlotte);
+  if (kind === 'lui') { ships = bnShipMap((v.flotteLui || []).concat(v.coulesChezLui || [])); (v.coulesChezLui || []).forEach(s => s.forEach(x => sunk[x] = 1)); }
+  const tirs = opts.noShots ? {} : (kind === 'moi' ? (v.sesTirs || {}) : (v.mesTirs || {}));
   const peutTirer = kind === 'lui' && g.statut === 'jeu' && g.tour === v.moi;
   const der = g.dernier && g.dernier.cell;
-  let h = '<div class="bng' + (kind === 'moi' ? ' small' : '') + '" style="grid-template-columns:repeat(' + N + ',1fr)">';
+  let h = '<div class="bng' + (opts.small ? ' small' : '') + (peutTirer ? ' armed' : '') + (opts.edit ? ' edit' : '') + '" style="grid-template-columns:18px repeat(' + N + ',1fr)">';
+  h += '<span></span>';
+  for (let c = 0; c < N; c++) h += '<span class="lab">' + (c + 1) + '</span>';
   for (let i = 0; i < N * N; i++) {
+    if (i % N === 0) h += '<span class="lab">' + 'ABCDEFGH'[Math.floor(i / N)] + '</span>';
     const t = tirs[i], cls = ['bc'];
-    if (ships[i]) cls.push('ship');
+    if (ships[i]) cls.push(ships[i]);
     if (sunk[i]) cls.push('sunk');
     if (t === 'x') cls.push('hit'); else if (t === 'o') cls.push('miss');
-    const isLast = g.dernier && der === i && ((kind === 'lui' && g.dernier.joueur === me) || (kind === 'moi' && g.dernier.joueur !== me));
-    if (isLast) cls.push('last');
-    h += peutTirer && !t ? '<button class="' + cls.join(' ') + ' shoot" data-cell="' + i + '" aria-label="Tirer case ' + (i + 1) + '"></button>' : '<div class="' + cls.join(' ') + '"></div>';
+    if (g.dernier && der === i && !opts.noShots && ((kind === 'lui' && g.dernier.joueur === me) || (kind === 'moi' && g.dernier.joueur !== me))) cls.push('last');
+    const clickable = opts.edit || (peutTirer && !t);
+    h += clickable ? '<button class="' + cls.join(' ') + '" ' + (opts.edit ? 'data-pcell' : 'data-cell') + '="' + i + '" aria-label="Case ' + 'ABCDEFGH'[Math.floor(i / N)] + (i % N + 1) + '"></button>'
+                   : '<div class="' + cls.join(' ') + '"></div>';
   }
   return h + '</div>';
+}
+function bnPose(anchor, size, horiz){
+  const N = state.bnN || 8, r = Math.floor(anchor / N), c = anchor % N, out = [];
+  for (let k = 0; k < size; k++) {
+    const rr = r + (horiz ? 0 : k), cc = c + (horiz ? k : 0);
+    if (rr >= N || cc >= N) return null;
+    out.push(rr * N + cc);
+  }
+  return out;
+}
+function bnEditHtml(g){
+  const e = bnEdit, done = e.ships.every(Boolean);
+  let h = '<p class="rule" style="margin-top:0">Choisis un navire, puis touche la case de départ. Touche un navire posé pour le reprendre.</p>';
+  h += '<div class="fleet">' + BN_TAILLES.map((t, i) => '<button data-ship="' + i + '" class="' + (e.sel === i ? 'on' : '') + (e.ships[i] ? ' placed' : '') + '"><i style="width:' + (t * 14) + 'px"></i>' + t + '</button>').join('') + '</div>';
+  h += '<div class="edrow"><button class="chip" data-b="rot">' + (e.horiz ? 'Horizontal' : 'Vertical') + ' (tourner)</button><button class="chip" data-b="vider">Tout enlever</button></div>';
+  h += bnGrid('moi', g, { ships: e.ships.filter(Boolean), noShots: true, edit: true });
+  h += '<button class="btn btn-p" data-b="valider"' + (done ? '' : ' disabled') + '>' + (done ? 'Valider ma flotte' : 'Place tous les navires') + '</button>';
+  h += '<button class="btn btn-s" data-b="auto">Revenir au placement aléatoire</button>';
+  return h;
 }
 function bnHtml(g){
   const v = g.vue || {}, autre = g.j1 === me ? g.j2 : g.j1, moi = v.moi;
   const fermer = '<button class="btn btn-s" data-b="close">Fermer</button>';
   if (g.statut === 'attente') {
-    if (g.j2 === me) return '<div class="dq"><div class="dwho">Invitation</div><div class="dtxt">' + esc(g.j1) + ' te défie à la bataille navale</div><div class="dtags"><span>Victoire +' + (state.bnGain || 10) + ' skegs</span></div></div>' +
+    if (g.j2 === me) return '<div class="dq"><div class="dwho">Invitation</div><div class="dtxt">' + esc(g.j1) + ' te défie à la bataille navale</div><div class="dtags"><span>Victoire +' + (state.bnGain || 30) + ' skegs</span></div></div>' +
       '<button class="btn btn-p" data-b="accept">Accepter</button><button class="btn btn-d" data-b="refuse">Refuser</button>';
     return '<p class="wait">En attente de la réponse de <b>' + esc(autre) + '</b></p><button class="btn btn-s" data-b="abandon">Annuler l\'invitation</button>';
   }
@@ -1385,9 +1469,11 @@ function bnHtml(g){
   if (g.statut === 'expire') return '<p class="wait">Partie expirée (plus de 30 min sans action).</p>' + fermer;
   if (g.statut === 'place') {
     const jePret = g.pret && g.pret[moi], luiPret = g.pret && g.pret[3 - moi];
-    return '<p class="rule" style="margin-top:0">Ta flotte : 1 navire de 4, 2 de 3, 1 de 2. Mélange jusqu\'à ce qu\'elle te plaise, puis valide.</p>' + bnGrid('moi', Object.assign({}, g, { vue: Object.assign({}, v, { sesTirs: {} }) })).replace(' small', '') +
+    if (!jePret && bnEdit && bnEdit.id === g.id) return bnEditHtml(g) + (luiPret ? '<p class="note" style="text-align:center">' + esc(autre) + ' est prêt.</p>' : '');
+    return '<p class="rule" style="margin-top:0">Ta flotte : 1 navire de 4, 2 de 3, 1 de 2.</p>' + bnGrid('moi', g, { noShots: true }) +
       (jePret ? '<p class="wait">Prêt. ' + (luiPret ? 'Lancement...' : 'En attente de <b>' + esc(autre) + '</b>') + '</p>'
-              : '<button class="btn btn-s" data-b="melanger">Mélanger</button><button class="btn btn-p" data-b="pret">Je suis prêt</button>' + (luiPret ? '<p class="note" style="text-align:center">' + esc(autre) + ' est prêt.</p>' : '')) +
+              : '<div class="edrow" style="margin-top:12px"><button class="btn btn-s" style="margin:0" data-b="melanger">Aléatoire</button><button class="btn btn-s" style="margin:0" data-b="manuel">Placer moi-même</button></div>' +
+                '<button class="btn btn-p" data-b="pret">Je suis prêt</button>' + (luiPret ? '<p class="note" style="text-align:center">' + esc(autre) + ' est prêt.</p>' : '')) +
       '<button class="link" data-b="abandon">Annuler la partie</button>';
   }
   const tot = (v.maFlotte || []).length || 4;
@@ -1397,18 +1483,20 @@ function bnHtml(g){
     let info = '';
     if (g.dernier) {
       const r = g.dernier.res === 'coule' ? 'Coulé !' : g.dernier.res === 'touche' ? 'Touché !' : 'À l\'eau.';
-      info = (g.dernier.joueur === me ? 'Ton tir : ' : esc(g.dernier.joueur) + ' : ') + r;
+      const N = state.bnN || 8, cel = 'ABCDEFGH'[Math.floor(g.dernier.cell / N)] + (g.dernier.cell % N + 1);
+      info = (g.dernier.joueur === me ? 'Ton tir en ' : esc(g.dernier.joueur) + ' tire en ') + cel + ' : ' + r;
     }
-    h += '<p class="wait" style="margin:4px 0 0">' + (monTour ? '<b>À toi de tirer</b>' : 'Tour de ' + esc(autre) + '...') + (info ? '<br>' + info : '') + '</p>';
+    h += '<div class="bnturn' + (monTour ? ' me' : '') + '">' + (monTour ? 'À toi de tirer' : 'Tour de ' + esc(autre)) + (info ? '<small>' + info + '</small>' : '') + '</div>';
   } else {
     const w = g.gagnant;
     h += '<div class="verdict' + (w === me ? ' hit' : '') + '">' + (w === me ? 'Victoire ! +' + g.gain + ' skegs' : esc(w) + ' gagne') + '</div>';
     if (g.abandon) h += '<p class="wait" style="margin-top:0">' + esc(g.abandon) + ' a abandonné.</p>';
   }
   h += '<div class="bnh"><span>Chez ' + esc(autre) + '</span><span>' + (v.coulesChezLui || []).length + '/' + tot + ' coulés</span></div>' + bnGrid('lui', g);
-  h += '<div class="bnh"><span>Ta flotte</span><span>' + (v.nbCoulesChezMoi || 0) + '/' + tot + ' coulés</span></div>' + bnGrid('moi', g);
+  h += '<div class="bnh"><span>Ta flotte</span><span>' + (v.nbCoulesChezMoi || 0) + '/' + tot + ' coulés</span></div>' + bnGrid('moi', g, { small: true });
   return h + (g.statut === 'jeu' ? '<button class="link" data-b="abandon">Abandonner</button>' : fermer);
 }
+function bnRedraw(){ const g = myBN(); if (g) $('bnBody').innerHTML = bnHtml(g); }
 function syncBN(){
   const g = myBN(), k = g ? [g.id, g.statut, g.nbTirs, g.tour, g.pret ? (g.pret[1] ? 1 : 0) + '' + (g.pret[2] ? 1 : 0) : '', JSON.stringify((g.vue || {}).maFlotte || []), me].join('|') : '';
   if (k !== bnKey) {
@@ -1423,6 +1511,23 @@ function syncBN(){
 $('bnBar').addEventListener('click', () => openSheet('shBN'));
 $('bnBody').addEventListener('click', async e => {
   const g = myBN(); if (!g) return;
+  if (bnEdit && bnEdit.id === g.id) {
+    const sb = e.target.closest('[data-ship]');
+    if (sb) { bnEdit.sel = +sb.dataset.ship; return bnRedraw(); }
+    const pc = e.target.closest('[data-pcell]');
+    if (pc) {
+      const cell = +pc.dataset.pcell, owner = bnEdit.ships.findIndex(s => s && s.indexOf(cell) >= 0);
+      if (owner >= 0) { bnEdit.ships[owner] = null; bnEdit.sel = owner; return bnRedraw(); }
+      if (bnEdit.sel == null) return toast('Choisis d\'abord un navire.', true);
+      const pose = bnPose(cell, BN_TAILLES[bnEdit.sel], bnEdit.horiz);
+      if (!pose) return toast('Ça dépasse de la grille.', true);
+      const occ = {}; bnEdit.ships.forEach((s, i) => { if (s && i !== bnEdit.sel) s.forEach(x => occ[x] = 1); });
+      if (pose.some(x => occ[x])) return toast('Ça chevauche un autre navire.', true);
+      bnEdit.ships[bnEdit.sel] = pose;
+      const next = bnEdit.ships.findIndex(s => !s); bnEdit.sel = next >= 0 ? next : null;
+      return bnRedraw();
+    }
+  }
   const c = e.target.closest('[data-cell]');
   if (c) {
     if (bnBusy) return;
@@ -1439,6 +1544,15 @@ $('bnBody').addEventListener('click', async e => {
   if (act === 'accept') return send({ action:'bn_repondre', joueur: me, id: g.id, accepte: true }, 'Place ta flotte', b);
   if (act === 'refuse') { markSeenBN(g.id); await send({ action:'bn_repondre', joueur: me, id: g.id, accepte: false }, 'Partie refusée', b); return closeSheets(); }
   if (act === 'melanger') return send({ action:'bn_melanger', joueur: me, id: g.id }, null, b);
+  if (act === 'manuel') { bnEdit = { id: g.id, ships: [null, null, null, null], sel: 0, horiz: true }; return bnRedraw(); }
+  if (act === 'auto') { bnEdit = null; return bnRedraw(); }
+  if (act === 'rot') { bnEdit.horiz = !bnEdit.horiz; return bnRedraw(); }
+  if (act === 'vider') { bnEdit.ships = [null, null, null, null]; bnEdit.sel = 0; return bnRedraw(); }
+  if (act === 'valider') {
+    if (!bnEdit.ships.every(Boolean)) return;
+    if (await send({ action:'bn_placer', joueur: me, id: g.id, flotte: bnEdit.ships }, 'Flotte validée, prêt', b)) { bnEdit = null; bnKey = ''; syncBN(); }
+    return;
+  }
   if (act === 'pret') return send({ action:'bn_pret', joueur: me, id: g.id }, 'Prêt', b);
   if (act === 'abandon') {
     const msg = g.statut === 'jeu' ? 'Abandonner ? Ton adversaire gagne la partie.' : 'Annuler la partie ?';
