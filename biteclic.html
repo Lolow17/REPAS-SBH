@@ -489,7 +489,7 @@ function statsP4(db) {
   return s;
 }
 /* --- Bataille navale (grille 8x8, flotte 4-3-3-2) --- */
-var BN_N = 8, BN_FLOTTE = [4, 3, 3, 2], BN_GAIN = 10, BN_TTL_ATTENTE = 10 * 60000, BN_TTL_COUP = 30 * 60000;
+var BN_N = 8, BN_FLOTTE = [4, 3, 3, 2], BN_GAIN = 30, BN_TTL_ATTENTE = 10 * 60000, BN_TTL_COUP = 30 * 60000;
 function bnActif_(g) { return g.statut === 'attente' || g.statut === 'place' || g.statut === 'jeu'; }
 function advanceBN(g, now) {
   if (g.statut === 'attente' && now - g.maj > BN_TTL_ATTENTE) { g.statut = 'expire'; g.maj += BN_TTL_ATTENTE; }
