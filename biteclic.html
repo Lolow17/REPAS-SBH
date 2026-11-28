@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0E1512">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B5E7E">
+<meta name="color-scheme" content="only light">
 <meta name="darkreader-lock">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BiteClic">
@@ -13,9 +13,9 @@
 <link rel="apple-touch-icon" href="biteclic-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-html{color-scheme:dark}
+html{color-scheme:only light}
 :root{
   --bg:#0E1512; --surf:#16201B; --surf2:#1E2B24; --line:#2A3A31;
   --txt:#EEF3EC; --mut:#8FA296; --acc:#C8F169; --acc-ink:#12200A;
@@ -240,6 +240,78 @@ button.row{width:100%;text-align:left}
   padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast.err{background:var(--bad);color:#200a04}
+/* C - LAGON : clair, bleu océan, corail, arrondis généreux */
+:root{--bg:#F5F3EE;--surf:#FFFFFF;--surf2:#EEF3F4;--line:#E2E6E8;--txt:#0E2A36;--mut:#6E8188;--acc:#0B5E7E;--acc-ink:#FFFFFF;--bad:#F2603F;--warn:#E39B1B;--r:22px;
+  --disp:'Unbounded',sans-serif;--body:'Manrope',sans-serif;--coral:#F2603F;--teal:#1FA79E}
+
+body{background:var(--bg)}
+.top{background:var(--acc);backdrop-filter:none;border-bottom:0;padding-bottom:16px;border-radius:0 0 26px 26px}
+.logo{color:#fff;font-size:22px;letter-spacing:-.02em}
+.logo span{color:#8FE3DA}
+.me{background:rgba(255,255,255,.14);border:0}
+.me .n{color:#fff}
+.me b{background:#fff;color:var(--acc)}
+h2{font-size:19px;letter-spacing:-.02em}
+.seg{background:#E7ECEE;border:0;border-radius:999px;padding:4px}
+.seg button{border-radius:999px;color:var(--mut)}
+.seg button[aria-pressed=true]{background:#fff;color:var(--txt);box-shadow:0 2px 8px rgba(14,42,54,.12)}
+.card,.row,.rrow,.pod,.dq{background:var(--surf)!important;border:0!important;border-radius:22px;box-shadow:0 6px 22px rgba(14,42,54,.08)}
+.card h3{font-size:16px;line-height:1.3}
+.badge{border-radius:999px;padding:4px 10px}
+.b-ouvert{background:#E3F6F3;color:var(--teal)}
+.odd{border-radius:16px;background:var(--surf2);border:0}
+.odd .oc{color:var(--coral);font-family:var(--disp);font-size:14px}
+.odd .bar{background:var(--teal)}
+.odd.win{background:#E3F6F3}
+.bonus{border-radius:22px;border:0!important;background:linear-gradient(120deg,#F2603F,#F59A5B)!important;color:#fff;box-shadow:0 10px 24px rgba(242,96,63,.3)}
+.bonus .s{color:rgba(255,255,255,.85)}
+.bonus button{background:#fff;color:var(--coral);border-radius:999px}
+.bonus.done{background:var(--surf)!important;color:var(--txt);box-shadow:0 6px 22px rgba(14,42,54,.08)}
+.bonus.done .s{color:var(--mut)}
+.btn{border-radius:999px}
+.btn-p{background:var(--acc);color:#fff;box-shadow:0 8px 20px rgba(11,94,126,.25)}
+.btn-s{background:var(--surf);border:1px solid var(--line)}
+.chip{border-radius:999px;background:var(--surf2);border:0}
+.tabs{left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));border-radius:999px;background:#fff;border:0;box-shadow:0 10px 30px rgba(14,42,54,.15);padding:6px}
+.tabs button{border-radius:999px;color:var(--mut)}
+.tabs button[aria-pressed=true]{background:var(--acc);color:#fff}
+.row .val,.rval b,.pv{font-family:var(--disp)}
+.pv{font-size:19px}.p1 .pv{font-size:23px;color:var(--coral)}
+.pod.p1{background:linear-gradient(180deg,#FFF1EC,#fff)!important}
+.pm{background:#E7ECEE;color:var(--txt)}.p1 .pm{background:var(--coral);color:#fff}.p3 .pm{background:#F4C9A8}
+.rbar{background:#EEF3F4}
+.rrow.self,.row.self{box-shadow:0 0 0 2px var(--teal),0 6px 22px rgba(14,42,54,.08)}
+.dot.on{background:var(--teal);box-shadow:0 0 0 4px rgba(31,167,158,.18)}
+.duelbar{background:var(--coral);color:#fff;border-radius:999px}
+.sheet{background:var(--bg);border-radius:28px 28px 0 0}
+.x{background:#E7ECEE}
+input[type=text],input[type=number],input[type=password],textarea{background:#fff;border:1px solid var(--line);border-radius:14px}
+main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+
+/* ---- ajustements style Lagon ---- */
+.dtags span{background:#E3F6F3;color:var(--teal)}
+.duelbar{bottom:calc(86px + env(safe-area-inset-bottom))}
+main{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+.bnturn{display:block;width:100%}
+.bnturn.me{color:var(--coral)}
+.verdict.hit{color:var(--teal)}
+.cd{color:var(--coral)}
+.who button,.quick button,.cols button{background:var(--surf);border:1px solid var(--line);border-radius:14px}
+.who button.sel{border-color:var(--teal);color:var(--teal)}
+.tog{background:#fff;border:1px solid var(--line);border-radius:16px}
+.mline{background:#fff;border-radius:14px}
+.slip{background:#fff;border:1px solid var(--line);border-radius:16px}
+.toast{background:var(--txt);color:#fff;border-radius:999px}
+.toast.err{background:var(--coral);color:#fff}
+.b-ferme{background:#FDF1DC;color:#B7791F}
+.b-regle{background:#EEF1F2;color:var(--mut)}
+.board{background:var(--acc)}
+.cz button{border-radius:999px;background:var(--surf2);border:0}
+.cz button[aria-pressed=true]{background:#FDE7E1;color:var(--coral)}
+.fleet button{background:#fff;border-radius:14px}
+.fleet button.on{border-color:var(--teal);color:var(--teal)}
+.legend{color:var(--mut)}
+.link{color:var(--mut)}
 </style>
 </head>
 <body>
