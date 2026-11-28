@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0E1512">
+<meta name="color-scheme" content="dark">
+<meta name="darkreader-lock">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BiteClic">
 <title>BiteClic</title>
@@ -13,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+html{color-scheme:dark}
 :root{
   --bg:#0E1512; --surf:#16201B; --surf2:#1E2B24; --line:#2A3A31;
   --txt:#EEF3EC; --mut:#8FA296; --acc:#C8F169; --acc-ink:#12200A;
@@ -169,19 +172,19 @@ button.row{width:100%;text-align:left}
 .p4who i{width:14px;height:14px;border-radius:50%;flex:none}
 .p4who .on{color:var(--txt)} .p4who .off{color:var(--mut)}
 .bng{display:grid;gap:3px;padding:8px 8px 8px 4px;border-radius:16px;margin-top:8px;
-  background:radial-gradient(120% 90% at 30% 0%,#1f6aa8 0%,#0f3f6e 55%,#0a2a4c 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 8px 20px rgba(0,0,0,.35)}
+  background-color:#123f6b;background-image:radial-gradient(120% 90% at 30% 0%,#1f6aa8 0%,#0f3f6e 55%,#0a2a4c 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 8px 20px rgba(0,0,0,.35)}
 .bng .lab{font-size:10px;font-weight:700;color:rgba(200,225,255,.55);display:flex;align-items:center;justify-content:center}
-.bng .bc{aspect-ratio:1;border-radius:5px;border:0;padding:0;position:relative;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.bng .bc{aspect-ratio:1;border-radius:5px;border:0;padding:0;position:relative;background:#22517d;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
 .bng.armed .bc:not(.hit):not(.miss){cursor:crosshair}
 .bng.armed button.bc:active{background:rgba(200,241,105,.35)}
 .bng.armed{box-shadow:inset 0 0 0 2px rgba(200,241,105,.55),0 8px 20px rgba(0,0,0,.35)}
-.bng .ship{background:linear-gradient(180deg,#c9d4dc,#8797a3);box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.bng .ship{background-color:#b3c0ca;background-image:linear-gradient(180deg,#c9d4dc,#8797a3);box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
 .bng .ship.sh{border-radius:3px}.bng .ship.sh.s0{border-radius:50% 3px 3px 50%}.bng .ship.sh.s1{border-radius:3px 50% 50% 3px}
 .bng .ship.sv{border-radius:3px}.bng .ship.sv.s0{border-radius:50% 50% 3px 3px}.bng .ship.sv.s1{border-radius:3px 3px 50% 50%}
 .bng .ship.s0.s1{border-radius:50%}
-.bng .sunk{background:linear-gradient(180deg,#5b4a46,#3a2c29)}
-.bng .hit::after{content:'';position:absolute;inset:22%;border-radius:50%;background:radial-gradient(circle,#ffd2a8 0%,#ff7a59 45%,#c2391b 100%);box-shadow:0 0 8px rgba(255,122,89,.8)}
-.bng .miss::after{content:'';position:absolute;inset:38%;border-radius:50%;background:rgba(220,238,255,.85);box-shadow:0 0 0 3px rgba(220,238,255,.15)}
+.bng .sunk{background-color:#4c3b37;background-image:linear-gradient(180deg,#5b4a46,#3a2c29)}
+.bng .hit::after{content:'';position:absolute;inset:22%;border-radius:50%;background-color:#ff7a59;background-image:radial-gradient(circle,#ffd2a8 0%,#ff7a59 45%,#c2391b 100%);box-shadow:0 0 8px rgba(255,122,89,.8)}
+.bng .miss::after{content:'';position:absolute;inset:38%;border-radius:50%;background:#dceeff;box-shadow:0 0 0 3px rgba(220,238,255,.15)}
 .bng .last{outline:2px solid #fff;outline-offset:-2px;animation:bnpulse 1.2s ease-out 2}
 @keyframes bnpulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}100%{box-shadow:0 0 0 10px rgba(255,255,255,0)}}
 @media (prefers-reduced-motion:reduce){.bng .last{animation:none}}
@@ -193,7 +196,7 @@ button.row{width:100%;text-align:left}
 .bnturn small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--mut);margin-top:2px}
 .fleet{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
 .fleet button{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--surf2);border:1px solid var(--line);font-weight:700;font-size:13px}
-.fleet button i{display:block;height:10px;border-radius:6px;background:linear-gradient(180deg,#c9d4dc,#8797a3)}
+.fleet button i{display:block;height:10px;border-radius:6px;background-color:#b3c0ca}
 .fleet button.on{border-color:var(--acc);color:var(--acc)}
 .fleet button.placed{opacity:.45}
 .fleet button.placed.on{opacity:1}
